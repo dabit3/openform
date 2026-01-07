@@ -51,7 +51,7 @@ A beautiful, open-source TypeForm alternative. Create engaging forms with a one-
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/yourusername/openform.git
+git clone https://github.com/dabit3/openform.git
 cd openform
 npm install
 ```
