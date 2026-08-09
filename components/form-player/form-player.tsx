@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Form, QuestionConfig, Json } from '@/lib/database.types'
 import { getTheme, getThemeCSSVariables } from '@/lib/themes'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,10 +12,10 @@ import { toast } from 'sonner'
 
 interface FormPlayerProps {
   form: Form
+  uploadTokens: Record<string, string>
 }
 
-export function FormPlayer({ form }: FormPlayerProps) {
-  const supabase = createClient()
+export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
   const questions = (form.questions as QuestionConfig[]) || []
   const theme = getTheme(form.theme)
   const themeStyles = getThemeCSSVariables(theme)
@@ -28,27 +27,26 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [direction, setDirection] = useState(0)
   
-  const containerRef = useRef<HTMLDivElement>(null)
-  const skipNextValidationRef = useRef(false)
+  const isSubmittingRef = useRef(false)
 
   const currentQuestion = questions[currentIndex]
   const isLastQuestion = currentIndex === questions.length - 1
   const isFirstQuestion = currentIndex === 0
   const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0
 
-  const validateCurrentQuestion = useCallback(() => {
+  const validateCurrentQuestion = useCallback((candidateAnswers: Record<string, Json> = answers) => {
     if (!currentQuestion) return true
     
-    const answer = answers[currentQuestion.id]
+    const answer = candidateAnswers[currentQuestion.id]
     
     if (currentQuestion.required) {
       if (answer === undefined || answer === null || answer === '') {
-        setErrors({ ...errors, [currentQuestion.id]: 'This field is required' })
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'This field is required' }))
         return false
       }
       
       if (Array.isArray(answer) && answer.length === 0) {
-        setErrors({ ...errors, [currentQuestion.id]: 'Please select at least one option' })
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please select at least one option' }))
         return false
       }
     }
@@ -57,7 +55,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
     if (answer && currentQuestion.type === 'email') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(String(answer))) {
-        setErrors({ ...errors, [currentQuestion.id]: 'Please enter a valid email address' })
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please enter a valid email address' }))
         return false
       }
     }
@@ -66,7 +64,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
       try {
         new URL(String(answer))
       } catch {
-        setErrors({ ...errors, [currentQuestion.id]: 'Please enter a valid URL' })
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please enter a valid URL' }))
         return false
       }
     }
@@ -74,67 +72,75 @@ export function FormPlayer({ form }: FormPlayerProps) {
     if (answer && currentQuestion.type === 'phone') {
       const phoneRegex = /^[+]?[\d\s\-().]+$/
       if (!phoneRegex.test(String(answer))) {
-        setErrors({ ...errors, [currentQuestion.id]: 'Please enter a valid phone number' })
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please enter a valid phone number' }))
         return false
       }
     }
 
     // Clear error if valid
-    const newErrors = { ...errors }
-    delete newErrors[currentQuestion.id]
-    setErrors(newErrors)
+    setErrors(previous => {
+      const nextErrors = { ...previous }
+      delete nextErrors[currentQuestion.id]
+      return nextErrors
+    })
     return true
-  }, [currentQuestion, answers, errors])
+  }, [currentQuestion, answers])
 
-  const goToNext = useCallback((skipValidation?: boolean) => {
-    // Check both the parameter and the ref for skip validation
-    const shouldSkip = skipValidation || skipNextValidationRef.current
-    skipNextValidationRef.current = false // Reset the ref
+  const handleSubmit = useCallback(async (submittedAnswers: Record<string, Json>) => {
+    if (isSubmittingRef.current) return
+
+    isSubmittingRef.current = true
+    setIsSubmitting(true)
     
-    if (!shouldSkip && !validateCurrentQuestion()) return
-    
+    const response = await fetch('/api/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ formId: form.id, answers: submittedAnswers }),
+    })
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({ error: 'Failed to submit response' }))
+      toast.error(result.error || 'Failed to submit response')
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+    } else {
+      setIsSubmitted(true)
+    }
+  }, [form.id])
+
+  const goToNext = useCallback((selectedValue?: Json) => {
+    const nextAnswers = selectedValue !== undefined && currentQuestion
+      ? { ...answers, [currentQuestion.id]: selectedValue }
+      : answers
+
+    if (selectedValue !== undefined && currentQuestion) {
+      setAnswers(nextAnswers)
+    }
+
+    if (!validateCurrentQuestion(nextAnswers)) return
+
     if (isLastQuestion) {
-      handleSubmit()
+      void handleSubmit(nextAnswers)
     } else {
       setDirection(1)
       setCurrentIndex(prev => Math.min(prev + 1, questions.length - 1))
     }
-  }, [isLastQuestion, questions.length, validateCurrentQuestion])
+  }, [answers, currentQuestion, handleSubmit, isLastQuestion, questions.length, validateCurrentQuestion])
 
   const goToPrevious = useCallback(() => {
     setDirection(-1)
     setCurrentIndex(prev => Math.max(prev - 1, 0))
   }, [])
 
-  const handleSubmit = async () => {
-    if (!validateCurrentQuestion()) return
-    
-    setIsSubmitting(true)
-    
-    const insertData = {
-      form_id: form.id,
-      answers: answers,
-    }
-    const { error } = await supabase
-      .from('responses')
-      .insert(insertData as never)
-
-    if (error) {
-      toast.error('Failed to submit response')
-      setIsSubmitting(false)
-    } else {
-      setIsSubmitted(true)
-    }
-  }
-
   const updateAnswer = (questionId: string, value: Json) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }))
     // Clear error when user starts typing
-    if (errors[questionId]) {
-      const newErrors = { ...errors }
-      delete newErrors[questionId]
-      setErrors(newErrors)
-    }
+    setErrors(previous => {
+      if (!previous[questionId]) return previous
+      const nextErrors = { ...previous }
+      delete nextErrors[questionId]
+      return nextErrors
+    })
   }
 
   // Keyboard navigation
@@ -299,7 +305,6 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
   return (
     <div 
-      ref={containerRef}
       className="min-h-screen flex flex-col"
       style={{ 
         ...themeStyles,
@@ -385,23 +390,12 @@ export function FormPlayer({ form }: FormPlayerProps) {
               >
                 <QuestionRenderer
                   question={currentQuestion}
+                  uploadToken={uploadTokens[currentQuestion.id]}
                   value={answers[currentQuestion.id]}
                   onChange={(value) => updateAnswer(currentQuestion.id, value)}
                   theme={theme}
                   error={errors[currentQuestion.id]}
-                  onSubmit={(skipValidation?: boolean) => {
-                    if (skipValidation) {
-                      skipNextValidationRef.current = true
-                    }
-                    goToNext(skipValidation)
-                  }}
-                  onClearError={() => {
-                    if (errors[currentQuestion.id]) {
-                      const newErrors = { ...errors }
-                      delete newErrors[currentQuestion.id]
-                      setErrors(newErrors)
-                    }
-                  }}
+                  onSubmit={goToNext}
                 />
               </motion.div>
 
@@ -502,4 +496,3 @@ export function FormPlayer({ form }: FormPlayerProps) {
     </div>
   )
 }
-

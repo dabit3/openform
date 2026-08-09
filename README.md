@@ -92,7 +92,14 @@ Edit `.env.local` with your Supabase credentials:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+RATE_LIMIT_SECRET=a-random-secret-of-at-least-32-bytes
+UPLOAD_TOKEN_SECRET=another-random-secret-of-at-least-32-bytes
 ```
+
+`SUPABASE_SERVICE_ROLE_KEY` is server-only. Never prefix it with `NEXT_PUBLIC_`
+or expose it to browser code. Existing installations must apply the SQL files in
+`supabase/migrations/` before deploying this version.
 
 ### 4. Run the development server
 
@@ -115,8 +122,10 @@ R2_ACCOUNT_ID=your-account-id
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_BUCKET_NAME=openform-uploads
-R2_PUBLIC_URL=https://your-bucket.r2.dev
 ```
+
+Keep the R2 bucket private. Uploaded files are served only through authenticated
+application routes after form ownership is verified.
 
 ## Deployment
 

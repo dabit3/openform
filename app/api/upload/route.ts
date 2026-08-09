@@ -1,87 +1,149 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { QuestionConfig } from '@/lib/database.types'
+import { deleteR2Objects, isR2Configured, putR2Object } from '@/lib/r2'
+import { consumeRateLimit, getClientIp } from '@/lib/security/rate-limit'
+import { verifyUploadToken } from '@/lib/security/upload-token'
 
-// Check if R2 is configured
-function isR2Configured(): boolean {
-  return !!(
-    process.env.R2_ACCOUNT_ID &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET_NAME
-  )
-}
+const SUPPORTED_FILE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+] as const
+const MAX_REQUEST_BYTES = 26 * 1024 * 1024
 
-// Create R2 client (lazy initialization)
-function getR2Client(): S3Client | null {
-  if (!isR2Configured()) return null
-  
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
+function isAllowedByQuestion(fileType: string, allowedFileTypes: string[]): boolean {
+  return allowedFileTypes.some(allowedType => {
+    if (allowedType === fileType) return true
+    return allowedType.endsWith('/*') && fileType.startsWith(allowedType.slice(0, -1))
   })
 }
 
+function hasValidFileSignature(buffer: Buffer, fileType: string): boolean {
+  if (fileType === 'image/jpeg') return buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))
+  if (fileType === 'image/png') return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  if (fileType === 'image/gif') return ['GIF87a', 'GIF89a'].includes(buffer.subarray(0, 6).toString('ascii'))
+  if (fileType === 'image/webp') {
+    return buffer.subarray(0, 4).toString('ascii') === 'RIFF'
+      && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  }
+  if (fileType === 'application/pdf') return buffer.subarray(0, 5).toString('ascii') === '%PDF-'
+  return false
+}
+
+async function cleanupAbandonedUploads(): Promise<void> {
+  const admin = createAdminClient()
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { data: abandoned } = await admin
+    .from('uploads')
+    .select('id, object_key')
+    .is('response_id', null)
+    .lt('created_at', cutoff)
+    .limit(50)
+
+  if (!abandoned?.length) return
+  await deleteR2Objects(abandoned.map(upload => upload.object_key))
+  await admin.from('uploads').delete().in('id', abandoned.map(upload => upload.id))
+}
+
 export async function POST(request: NextRequest) {
+  const contentLength = Number(request.headers.get('content-length') || 0)
+  if (contentLength > MAX_REQUEST_BYTES) {
+    return NextResponse.json({ error: 'Upload request is too large' }, { status: 413 })
+  }
+
+  const token = request.headers.get('x-upload-token')
+  const tokenPayload = token ? verifyUploadToken(token) : null
+  if (!tokenPayload) {
+    return NextResponse.json({ error: 'Invalid or expired upload authorization' }, { status: 401 })
+  }
+
   try {
+    const [ipAllowed, formAllowed] = await Promise.all([
+      consumeRateLimit('upload-ip', getClientIp(request), 10, 10 * 60),
+      consumeRateLimit('upload-form', tokenPayload.formId, 100, 60 * 60),
+    ])
+    if (!ipAllowed || !formAllowed) {
+      return NextResponse.json({ error: 'Too many uploads. Please try again later.' }, { status: 429 })
+    }
+
+    const admin = createAdminClient()
+    const { data: form } = await admin
+      .from('forms')
+      .select('questions')
+      .eq('id', tokenPayload.formId)
+      .eq('status', 'published')
+      .maybeSingle()
+
+    const question = (form?.questions as QuestionConfig[] | undefined)
+      ?.find(candidate => candidate.id === tokenPayload.questionId && candidate.type === 'file_upload')
+    if (!question) {
+      return NextResponse.json({ error: 'Published upload question not found' }, { status: 404 })
+    }
+
     const formData = await request.formData()
-    const file = formData.get('file') as File
-    
-    if (!file) {
+    const file = formData.get('file')
+    if (!(file instanceof File)) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Allowed: JPEG, PNG, GIF, WebP, PDF' }, { status: 400 })
+    const configuredTypes = question.allowedFileTypes || ['image/*', 'application/pdf']
+    if (!SUPPORTED_FILE_TYPES.includes(file.type as typeof SUPPORTED_FILE_TYPES[number])
+      || !isAllowedByQuestion(file.type, configuredTypes)) {
+      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
     }
 
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File too large. Maximum size is 10MB' }, { status: 400 })
+    const maxFileSizeMb = Math.min(Math.max(question.maxFileSize || 10, 1), 25)
+    if (file.size > maxFileSizeMb * 1024 * 1024) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${maxFileSizeMb}MB` },
+        { status: 400 }
+      )
     }
 
-    const r2 = getR2Client()
-    
-    if (!r2) {
-      // R2 not configured - return error
-      return NextResponse.json({ 
-        error: 'File storage not configured. Please set R2 environment variables.',
-        configured: false 
-      }, { status: 503 })
+    if (!isR2Configured()) {
+      return NextResponse.json({ error: 'File storage is not configured', configured: false }, { status: 503 })
     }
 
-    // Generate unique filename
-    const timestamp = Date.now()
-    const randomId = Math.random().toString(36).substring(2, 8)
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const key = `uploads/${timestamp}-${randomId}-${sanitizedName}`
-    
-    // Convert file to buffer
     const buffer = Buffer.from(await file.arrayBuffer())
-    
-    // Upload to R2
-    await r2.send(new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: key,
-      Body: buffer,
-      ContentType: file.type,
-    }))
+    if (!hasValidFileSignature(buffer, file.type)) {
+      return NextResponse.json({ error: 'File contents do not match the selected file type' }, { status: 400 })
+    }
 
-    // Construct public URL
-    const publicUrl = process.env.R2_PUBLIC_URL 
-      ? `${process.env.R2_PUBLIC_URL}/${key}`
-      : `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_') || 'upload'
+    const objectKey = `uploads/${tokenPayload.formId}/${tokenPayload.questionId}/${crypto.randomUUID()}-${sanitizedName}`
+    await putR2Object(objectKey, buffer, file.type)
+
+    const { data: upload, error: insertError } = await admin
+      .from('uploads')
+      .insert({
+        form_id: tokenPayload.formId,
+        question_id: tokenPayload.questionId,
+        object_key: objectKey,
+        original_name: file.name.slice(0, 255),
+        content_type: file.type,
+        size_bytes: file.size,
+      })
+      .select('id')
+      .single()
+
+    if (insertError || !upload) {
+      await deleteR2Objects([objectKey])
+      throw insertError || new Error('Failed to record upload')
+    }
+
+    try {
+      await cleanupAbandonedUploads()
+    } catch (cleanupError) {
+      console.error('Abandoned upload cleanup error:', cleanupError)
+    }
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
       file: {
+        uploadId: upload.id,
         name: file.name,
         type: file.type,
         size: file.size,
@@ -93,9 +155,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint to check if R2 is configured
 export async function GET() {
-  return NextResponse.json({
-    configured: isR2Configured(),
-  })
+  return NextResponse.json({ configured: isR2Configured() })
 }

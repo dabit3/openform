@@ -111,7 +111,7 @@ Forms at `/f/[slug]` are excluded from auth middleware. They:
 
 ## File Uploads
 
-Configure R2 env vars to enable. Upload endpoint at `app/api/upload/route.ts` returns public URL stored in answers JSONB.
+Configure R2 env vars to enable. The bucket must remain private: the upload endpoint returns an opaque upload ID, and authenticated owner-only routes stream attachments from R2.
 
 ## Commands
 
@@ -120,4 +120,3 @@ npm run dev      # Development server (localhost:3000)
 npm run build    # Production build
 npm run lint     # ESLint
 ```
-

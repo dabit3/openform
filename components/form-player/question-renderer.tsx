@@ -8,26 +8,39 @@ import { motion } from 'framer-motion'
 import { Star, Upload, Check, X, FileText, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react'
 
 interface FileUploadValue {
+  uploadId: string
   name: string
-  url: string
   type: string
   size?: number
 }
 
 interface FileUploadQuestionProps {
+  uploadToken?: string
   question: QuestionConfig
   value: FileUploadValue | null
-  onChange: (value: FileUploadValue | null) => void
+  onChange: (value: Json) => void
   theme: ThemeConfig
 }
 
-function FileUploadQuestion({ question, value, onChange, theme }: FileUploadQuestionProps) {
+function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: FileUploadQuestionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   const handleFileSelect = useCallback(async (file: File) => {
     setUploadError(null)
+
+    if (!uploadToken) {
+      setUploadError('Uploads are not available for this question')
+      return
+    }
+
+    const maxFileSize = question.maxFileSize || 10
+    if (file.size > maxFileSize * 1024 * 1024) {
+      setUploadError(`File too large. Maximum size is ${maxFileSize}MB`)
+      return
+    }
+
     setIsUploading(true)
 
     try {
@@ -36,49 +49,29 @@ function FileUploadQuestion({ question, value, onChange, theme }: FileUploadQues
 
       const response = await fetch('/api/upload', {
         method: 'POST',
+        headers: { 'X-Upload-Token': uploadToken },
         body: formData,
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        // If R2 is not configured, fall back to base64
-        if (response.status === 503 && !result.configured) {
-          // Fall back to base64 for local/demo usage
-          const reader = new FileReader()
-          reader.onload = () => {
-            onChange({
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              url: reader.result as string, // base64 data URL
-            })
-            setIsUploading(false)
-          }
-          reader.onerror = () => {
-            setUploadError('Failed to read file')
-            setIsUploading(false)
-          }
-          reader.readAsDataURL(file)
-          return
-        }
-        
         throw new Error(result.error || 'Upload failed')
       }
 
       // Success - store the R2 URL
       onChange({
+        uploadId: result.file.uploadId,
         name: result.file.name,
         type: result.file.type,
         size: result.file.size,
-        url: result.url,
       })
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Upload failed')
     } finally {
       setIsUploading(false)
     }
-  }, [onChange])
+  }, [onChange, question.maxFileSize, uploadToken])
 
   return (
     <div>
@@ -175,23 +168,23 @@ function FileUploadQuestion({ question, value, onChange, theme }: FileUploadQues
 }
 
 interface QuestionRendererProps {
+  uploadToken?: string
   question: QuestionConfig
   value: Json
   onChange: (value: Json) => void
   theme: ThemeConfig
   error?: string
-  onSubmit: (skipValidation?: boolean) => void
-  onClearError?: () => void
+  onSubmit: (selectedValue?: Json) => void
 }
 
 export function QuestionRenderer({ 
+  uploadToken,
   question, 
   value, 
   onChange, 
   theme,
   error,
-  onSubmit,
-  onClearError
+  onSubmit
 }: QuestionRendererProps) {
   const [isFocused, setIsFocused] = useState(false)
 
@@ -263,9 +256,7 @@ export function QuestionRenderer({
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  onChange(option)
-                  onClearError?.()
-                  onSubmit(true)
+                  onSubmit(option)
                 }}
                 className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
                 style={{
@@ -359,9 +350,7 @@ export function QuestionRenderer({
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  onChange(option)
-                  onClearError?.()
-                  onSubmit(true)
+                  onSubmit(option)
                 }}
                 className="flex-1 flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all"
                 style={{
@@ -439,9 +428,7 @@ export function QuestionRenderer({
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  onChange(num)
-                  onClearError?.()
-                  onSubmit(true)
+                  onSubmit(num)
                 }}
                 className="w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 flex items-center justify-center text-lg font-medium transition-all"
                 style={{
@@ -460,6 +447,7 @@ export function QuestionRenderer({
     case 'file_upload':
       return (
         <FileUploadQuestion
+          uploadToken={uploadToken}
           question={question}
           value={value as FileUploadValue | null}
           onChange={onChange}
@@ -475,4 +463,3 @@ export function QuestionRenderer({
       )
   }
 }
-

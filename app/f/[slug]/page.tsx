@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { FormPlayer } from '@/components/form-player/form-player'
 import { Form } from '@/lib/database.types'
+import { QuestionConfig } from '@/lib/database.types'
+import { createUploadToken } from '@/lib/security/upload-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +51,11 @@ export default async function FormPage({ params }: FormPageProps) {
     notFound()
   }
 
-  return <FormPlayer form={form} />
-}
+  const uploadTokens = Object.fromEntries(
+    (form.questions as QuestionConfig[])
+      .filter(question => question.type === 'file_upload')
+      .map(question => [question.id, createUploadToken(form.id, question.id)])
+  )
 
+  return <FormPlayer form={form} uploadTokens={uploadTokens} />
+}

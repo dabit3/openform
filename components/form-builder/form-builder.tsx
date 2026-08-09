@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Form, QuestionConfig, ThemePreset, FormStatus } from '@/lib/database.types'
 import { questionTypes, createDefaultQuestion } from '@/lib/questions'
@@ -49,8 +48,7 @@ interface FormBuilderProps {
 }
 
 export function FormBuilder({ form: initialForm }: FormBuilderProps) {
-  const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   
   const [form, setForm] = useState(initialForm)
   const [questions, setQuestions] = useState<QuestionConfig[]>(
@@ -81,7 +79,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       .eq('id', form.id)
 
     if (error) {
-      toast.error('Failed to save form')
+      toast.error(error.code === '23505' ? 'That form URL is already in use' : 'Failed to save form')
     } else {
       toast.success('Form saved')
       setHasUnsavedChanges(false)
@@ -113,7 +111,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       .eq('id', form.id)
 
     if (error) {
-      toast.error('Failed to update form status')
+      toast.error(error.code === '23505' ? 'That form URL is already in use' : 'Failed to update form status')
     } else {
       setForm({ ...form, status: newStatus })
       toast.success(newStatus === 'published' ? 'Form published!' : 'Form unpublished')

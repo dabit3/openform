@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { Form, Response, QuestionConfig, Json } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,11 +62,10 @@ function formatDate(date: string) {
 }
 
 interface FileUpload {
+  uploadId: string
   name: string
   type: string
   size?: number
-  data?: string  // base64 data URL (fallback)
-  url?: string   // R2 URL (preferred)
 }
 
 function isFileUpload(answer: Json): boolean {
@@ -76,12 +73,11 @@ function isFileUpload(answer: Json): boolean {
     return false
   }
   const obj = answer as Record<string, unknown>
-  // Check if it has name and either url or data (file upload signature)
   return (
+    'uploadId' in obj &&
+    typeof obj.uploadId === 'string' &&
     'name' in obj &&
-    typeof obj.name === 'string' &&
-    (('url' in obj && typeof obj.url === 'string') || 
-     ('data' in obj && typeof obj.data === 'string'))
+    typeof obj.name === 'string'
   )
 }
 
@@ -90,8 +86,7 @@ function asFileUpload(answer: Json): FileUpload {
 }
 
 function getFileUrl(file: FileUpload): string {
-  // Prefer URL (R2) over data (base64)
-  return file.url || file.data || ''
+  return `/api/uploads/${encodeURIComponent(file.uploadId)}`
 }
 
 function formatAnswer(answer: Json): string {
@@ -114,9 +109,13 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+function escapeCsvCell(value: unknown): string {
+  const cell = String(value)
+  const neutralized = /^(?:[\t\r\n]|[\s]*[=+\-@])/.test(cell) ? `'${cell}` : cell
+  return `"${neutralized.replace(/"/g, '""')}"`
+}
+
 export function ResponsesDashboard({ form, responses: initialResponses }: ResponsesDashboardProps) {
-  const router = useRouter()
-  const supabase = createClient()
   const questions = (form.questions as QuestionConfig[]) || []
 
   const [responses, setResponses] = useState(initialResponses)
@@ -143,12 +142,9 @@ export function ResponsesDashboard({ form, responses: initialResponses }: Respon
     if (!responseToDelete) return
     
     setIsDeleting(true)
-    const { error } = await supabase
-      .from('responses')
-      .delete()
-      .eq('id', responseToDelete)
+    const result = await fetch(`/api/responses/${responseToDelete}`, { method: 'DELETE' })
 
-    if (error) {
+    if (!result.ok) {
       toast.error('Failed to delete response')
     } else {
       setResponses(prev => prev.filter(r => r.id !== responseToDelete))
@@ -179,9 +175,9 @@ export function ResponsesDashboard({ form, responses: initialResponses }: Respon
 
     // Create CSV content
     const csvContent = [
-      headers.map(h => `"${h.replace(/"/g, '""')}"`).join(','),
+      headers.map(escapeCsvCell).join(','),
       ...rows.map(row => 
-        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        row.map(escapeCsvCell).join(',')
       )
     ].join('\n')
 
@@ -435,21 +431,18 @@ export function ResponsesDashboard({ form, responses: initialResponses }: Respon
           
           <div className="flex-1 overflow-auto min-h-0 mt-4">
             {filePreview?.type?.startsWith('image/') ? (
+              // Authenticated object proxy supports private R2 images.
+              // eslint-disable-next-line @next/next/no-img-element
               <img 
                 src={getFileUrl(filePreview)} 
                 alt={filePreview.name}
+                referrerPolicy="no-referrer"
                 className="max-w-full h-auto rounded-lg mx-auto"
-              />
-            ) : filePreview?.type === 'application/pdf' ? (
-              <iframe
-                src={getFileUrl(filePreview)}
-                className="w-full h-[60vh] rounded-lg border"
-                title={filePreview.name}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-slate-500">
                 <File className="w-16 h-16 mb-4 opacity-50" />
-                <p>Preview not available for this file type</p>
+                <p>Download this file to view it safely</p>
               </div>
             )}
           </div>
@@ -458,28 +451,17 @@ export function ResponsesDashboard({ form, responses: initialResponses }: Respon
             <Button variant="outline" onClick={() => setFilePreview(null)}>
               Close
             </Button>
-            {filePreview?.url ? (
-              <a href={filePreview.url} target="_blank" rel="noopener noreferrer" download={filePreview.name}>
+            {filePreview && (
+              <a
+                href={`${getFileUrl(filePreview)}?download=1`}
+                rel="noopener noreferrer"
+                download={filePreview.name}
+              >
                 <Button className="bg-blue-600 hover:bg-blue-700">
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
               </a>
-            ) : (
-              <Button
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  if (filePreview?.data) {
-                    const link = document.createElement('a')
-                    link.href = filePreview.data
-                    link.download = filePreview.name
-                    link.click()
-                  }
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
             )}
           </DialogFooter>
         </DialogContent>
