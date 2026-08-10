@@ -6,8 +6,9 @@ import { getTheme, getThemeCSSVariables } from '@/lib/themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { ChevronUp, ChevronDown, Check, ArrowRight } from 'lucide-react'
+import { ChevronUp, ChevronDown, Check, ArrowLeft } from 'lucide-react'
 import { QuestionRenderer } from './question-renderer'
+import { PHONE_PATTERN } from '@/lib/security/response-validation'
 import { toast } from 'sonner'
 
 interface FormPlayerProps {
@@ -28,6 +29,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
   const [direction, setDirection] = useState(0)
   
   const isSubmittingRef = useRef(false)
+  const lastScrollTimeRef = useRef(0)
 
   const currentQuestion = questions[currentIndex]
   const isLastQuestion = currentIndex === questions.length - 1
@@ -41,12 +43,12 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
     
     if (currentQuestion.required) {
       if (answer === undefined || answer === null || answer === '') {
-        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'This field is required' }))
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'שדה חובה' }))
         return false
       }
-      
+
       if (Array.isArray(answer) && answer.length === 0) {
-        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please select at least one option' }))
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'יש לבחור לפחות אפשרות אחת' }))
         return false
       }
     }
@@ -55,7 +57,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
     if (answer && currentQuestion.type === 'email') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(String(answer))) {
-        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please enter a valid email address' }))
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'כתובת האימייל לא תקינה' }))
         return false
       }
     }
@@ -64,15 +66,14 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
       try {
         new URL(String(answer))
       } catch {
-        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please enter a valid URL' }))
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'כתובת האתר לא תקינה' }))
         return false
       }
     }
 
     if (answer && currentQuestion.type === 'phone') {
-      const phoneRegex = /^[+]?[\d\s\-().]+$/
-      if (!phoneRegex.test(String(answer))) {
-        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'Please enter a valid phone number' }))
+      if (!PHONE_PATTERN.test(String(answer).trim())) {
+        setErrors(previous => ({ ...previous, [currentQuestion.id]: 'מספר הטלפון לא תקין' }))
         return false
       }
     }
@@ -91,20 +92,25 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
 
     isSubmittingRef.current = true
     setIsSubmitting(true)
-    
-    const response = await fetch('/api/responses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ formId: form.id, answers: submittedAnswers }),
-    })
 
-    if (!response.ok) {
-      const result = await response.json().catch(() => ({ error: 'Failed to submit response' }))
-      toast.error(result.error || 'Failed to submit response')
+    try {
+      const response = await fetch('/api/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formId: form.id, answers: submittedAnswers }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({ error: 'שליחת התשובה נכשלה' }))
+        toast.error(result.error || 'שליחת התשובה נכשלה')
+        return
+      }
+      setIsSubmitted(true)
+    } catch {
+      toast.error('תקלת רשת - התשובות שלך נשמרו, יש לנסות שוב')
+    } finally {
       isSubmittingRef.current = false
       setIsSubmitting(false)
-    } else {
-      setIsSubmitted(true)
     }
   }, [form.id])
 
@@ -178,37 +184,39 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
 
   // Scroll/wheel navigation
   useEffect(() => {
-    let lastScrollTime = 0
     const scrollThreshold = 500 // ms between scroll navigations
     const deltaThreshold = 50 // minimum scroll delta to trigger navigation
 
     const handleWheel = (e: WheelEvent) => {
       if (isSubmitted || isSubmitting) return
-      
+
       // Don't interfere with scrollable inputs like textarea
       const target = e.target as HTMLElement
       if (target.tagName === 'TEXTAREA') return
-      
+
+      // Debounce lives in a ref so it survives this effect re-registering every
+      // time goToNext's identity changes (i.e. on every question change).
       const now = Date.now()
-      if (now - lastScrollTime < scrollThreshold) return
-      
+      if (now - lastScrollTimeRef.current < scrollThreshold) return
+
       // Check if scroll delta is significant enough
       if (Math.abs(e.deltaY) < deltaThreshold) return
-      
+
+      lastScrollTimeRef.current = now
       if (e.deltaY > 0) {
-        // Scrolling down - go to next question
+        // Scrolling down - go to next question. Never auto-submit on scroll;
+        // submission stays an explicit click/Enter so momentum flicks can't send.
+        if (isLastQuestion) return
         goToNext()
       } else {
         // Scrolling up - go to previous question
         goToPrevious()
       }
-      
-      lastScrollTime = now
     }
 
     window.addEventListener('wheel', handleWheel, { passive: true })
     return () => window.removeEventListener('wheel', handleWheel)
-  }, [goToNext, goToPrevious, isSubmitted, isSubmitting])
+  }, [goToNext, goToPrevious, isLastQuestion, isSubmitted, isSubmitting])
 
   // Thank you screen
   if (isSubmitted) {
@@ -245,7 +253,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
             className="text-lg opacity-70"
             style={{ color: theme.textColor }}
           >
-            Your response has been recorded.
+            התשובה שלך נקלטה.
           </p>
           
           {/* OpenForm branding */}
@@ -262,7 +270,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
               className="inline-flex items-center gap-2 text-sm opacity-50 hover:opacity-70 transition-opacity"
               style={{ color: theme.textColor }}
             >
-              <span>Made with</span>
+              <span>נבנה עם</span>
               <span className="font-semibold">OpenForm</span>
             </a>
           </motion.div>
@@ -282,7 +290,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
         }}
       >
         <p style={{ color: theme.textColor }} className="opacity-50">
-          This form has no questions yet.
+          עדיין אין שאלות בטופס הזה.
         </p>
       </div>
     )
@@ -313,11 +321,11 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
       }}
     >
       {/* Progress bar */}
-      <div className="fixed top-0 left-0 right-0 z-50">
-        <Progress 
-          value={progress} 
+      <div className="fixed top-0 inset-x-0 z-50">
+        <Progress
+          value={progress}
           className="h-1 rounded-none"
-          style={{ 
+          style={{
             backgroundColor: `${theme.primaryColor}20`,
           }}
           indicatorStyle={{
@@ -341,7 +349,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
             >
               {/* Question number */}
               <motion.div 
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
                 className="mb-6 flex items-center gap-2"
@@ -352,7 +360,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
                 >
                   {currentIndex + 1}
                 </span>
-                <ArrowRight className="w-4 h-4" style={{ color: theme.primaryColor }} />
+                <ArrowLeft className="w-4 h-4" style={{ color: theme.primaryColor }} />
               </motion.div>
 
               {/* Question */}
@@ -363,9 +371,9 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
                 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3"
                 style={{ color: theme.textColor }}
               >
-                {currentQuestion.title || 'Untitled question'}
+                {currentQuestion.title || 'שאלה ללא כותרת'}
                 {currentQuestion.required && (
-                  <span style={{ color: theme.primaryColor }} className="ml-1">*</span>
+                  <span style={{ color: theme.primaryColor }} className="ms-1">*</span>
                 )}
               </motion.h2>
 
@@ -431,25 +439,25 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
                   }}
                 >
                   {isSubmitting ? (
-                    'Submitting...'
+                    'שולח...'
                   ) : isLastQuestion ? (
                     <>
-                      Submit
-                      <Check className="w-4 h-4 ml-2" />
+                      שליחה
+                      <Check className="w-4 h-4 ms-2" />
                     </>
                   ) : (
                     <>
-                      OK
-                      <Check className="w-4 h-4 ml-2" />
+                      אישור
+                      <Check className="w-4 h-4 ms-2" />
                     </>
                   )}
                 </Button>
 
-                <span 
+                <span
                   className="text-sm opacity-50"
                   style={{ color: theme.textColor }}
                 >
-                  press <kbd className="font-mono font-medium">Enter ↵</kbd>
+                  אפשר להקיש <kbd className="font-mono font-medium" dir="ltr">Enter ↵</kbd>
                 </span>
               </motion.div>
             </motion.div>
@@ -458,7 +466,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
       </main>
 
       {/* Navigation footer */}
-      <footer className="fixed bottom-0 left-0 right-0 p-4 flex items-center justify-between">
+      <footer className="fixed bottom-0 inset-x-0 p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -490,7 +498,7 @@ export function FormPlayer({ form, uploadTokens }: FormPlayerProps) {
           className="text-sm opacity-50 hover:opacity-70 transition-opacity"
           style={{ color: theme.textColor }}
         >
-          Powered by <span className="font-semibold">OpenForm</span>
+          מופעל על ידי <span className="font-semibold">OpenForm</span>
         </a>
       </footer>
     </div>

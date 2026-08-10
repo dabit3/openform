@@ -21,7 +21,7 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
 
   const addOption = () => {
     const options = question.options || []
-    onUpdate({ options: [...options, `Option ${options.length + 1}`] })
+    onUpdate({ options: [...options, `אפשרות ${options.length + 1}`] })
   }
 
   const updateOption = (index: number, value: string) => {
@@ -45,12 +45,12 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
 
       {/* Question Title */}
       <div>
-        <Label htmlFor="title" className="text-sm font-medium">Question</Label>
+        <Label htmlFor="title" className="text-sm font-medium">שאלה</Label>
         <Textarea
           id="title"
           value={question.title}
           onChange={(e) => onUpdate({ title: e.target.value })}
-          placeholder="Type your question here..."
+          placeholder="כאן כותבים את השאלה..."
           className="mt-2 resize-none"
           rows={2}
         />
@@ -59,13 +59,13 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
       {/* Description */}
       <div>
         <Label htmlFor="description" className="text-sm font-medium">
-          Description <span className="text-slate-400 font-normal">(optional)</span>
+          תיאור <span className="text-slate-400 font-normal">(לא חובה)</span>
         </Label>
         <Textarea
           id="description"
           value={question.description || ''}
           onChange={(e) => onUpdate({ description: e.target.value })}
-          placeholder="Add a description..."
+          placeholder="אפשר להוסיף תיאור..."
           className="mt-2 resize-none"
           rows={2}
         />
@@ -76,7 +76,7 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
       {/* Type-specific settings */}
       {(question.type === 'dropdown' || question.type === 'checkboxes') && (
         <div>
-          <Label className="text-sm font-medium mb-3 block">Options</Label>
+          <Label className="text-sm font-medium mb-3 block">אפשרויות</Label>
           <div className="space-y-2">
             {(question.options || []).map((option, index) => (
               <div
@@ -89,7 +89,7 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
                 <Input
                   value={option}
                   onChange={(e) => updateOption(index, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
+                  placeholder={`אפשרות ${index + 1}`}
                   className="flex-1"
                 />
                 <Button
@@ -110,8 +110,8 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
             onClick={addOption}
             className="mt-3 w-full"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add option
+            <Plus className="w-4 h-4 me-2" />
+            הוספת אפשרות
           </Button>
         </div>
       )}
@@ -120,12 +120,12 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
         question.type === 'email' || question.type === 'phone' || 
         question.type === 'url' || question.type === 'number') && (
         <div>
-          <Label htmlFor="placeholder" className="text-sm font-medium">Placeholder</Label>
+          <Label htmlFor="placeholder" className="text-sm font-medium">טקסט מציין מקום</Label>
           <Input
             id="placeholder"
             value={question.placeholder || ''}
             onChange={(e) => onUpdate({ placeholder: e.target.value })}
-            placeholder="Placeholder text..."
+            placeholder="הטקסט שיוצג בשדה הריק..."
             className="mt-2"
           />
         </div>
@@ -133,10 +133,10 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
 
       {question.type === 'rating' && (
         <div>
-          <Label className="text-sm font-medium mb-3 block">Rating Scale</Label>
+          <Label className="text-sm font-medium mb-3 block">סולם הדירוג</Label>
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <Label htmlFor="minValue" className="text-xs text-slate-500">Min</Label>
+              <Label htmlFor="minValue" className="text-xs text-slate-500">מינימום</Label>
               <Input
                 id="minValue"
                 type="number"
@@ -148,7 +148,7 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
               />
             </div>
             <div className="flex-1">
-              <Label htmlFor="maxValue" className="text-xs text-slate-500">Max</Label>
+              <Label htmlFor="maxValue" className="text-xs text-slate-500">מקסימום</Label>
               <Input
                 id="maxValue"
                 type="number"
@@ -165,10 +165,10 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
 
       {question.type === 'opinion_scale' && (
         <div>
-          <Label className="text-sm font-medium mb-3 block">Scale Range</Label>
+          <Label className="text-sm font-medium mb-3 block">טווח הסולם</Label>
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <Label htmlFor="minValue" className="text-xs text-slate-500">Min</Label>
+              <Label htmlFor="minValue" className="text-xs text-slate-500">מינימום</Label>
               <Input
                 id="minValue"
                 type="number"
@@ -180,7 +180,7 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
               />
             </div>
             <div className="flex-1">
-              <Label htmlFor="maxValue" className="text-xs text-slate-500">Max</Label>
+              <Label htmlFor="maxValue" className="text-xs text-slate-500">מקסימום</Label>
               <Input
                 id="maxValue"
                 type="number"
@@ -198,11 +198,11 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
       {question.type === 'file_upload' && (
         <div className="space-y-4">
           <div>
-            <Label className="text-sm font-medium mb-2 block">Allowed file types</Label>
-            <p className="text-sm text-slate-500">Images and PDFs are allowed</p>
+            <Label className="text-sm font-medium mb-2 block">סוגי קבצים מותרים</Label>
+            <p className="text-sm text-slate-500">אפשר להעלות תמונות וקובצי PDF</p>
           </div>
           <div>
-            <Label htmlFor="maxFileSize" className="text-sm font-medium">Max file size (MB)</Label>
+            <Label htmlFor="maxFileSize" className="text-sm font-medium">גודל קובץ מרבי (MB)</Label>
             <Input
               id="maxFileSize"
               type="number"
@@ -221,8 +221,8 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
       {/* Required toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <Label className="text-sm font-medium">Required</Label>
-          <p className="text-xs text-slate-500">Respondents must answer this question</p>
+          <Label className="text-sm font-medium">שדה חובה</Label>
+          <p className="text-xs text-slate-500">חובה לענות על השאלה הזו כדי להמשיך</p>
         </div>
         <Switch
           checked={question.required}
@@ -238,8 +238,8 @@ export function QuestionEditor({ question, onUpdate, onDelete }: QuestionEditorP
         onClick={onDelete}
         className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
       >
-        <Trash2 className="w-4 h-4 mr-2" />
-        Delete question
+        <Trash2 className="w-4 h-4 me-2" />
+        מחיקת השאלה
       </Button>
     </div>
   )

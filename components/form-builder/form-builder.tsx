@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Form, QuestionConfig, ThemePreset, FormStatus } from '@/lib/database.types'
-import { questionTypes, createDefaultQuestion } from '@/lib/questions'
+import { questionTypes, createDefaultQuestion, getQuestionTypeInfo } from '@/lib/questions'
 import { themes, themeList } from '@/lib/themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,7 +24,7 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence, Reorder } from 'framer-motion'
 import {
-  ArrowLeft,
+  ArrowRight,
   Plus,
   Trash2,
   GripVertical,
@@ -47,6 +47,14 @@ interface FormBuilderProps {
   form: Form
 }
 
+// Must be non-empty (DB column is NOT NULL UNIQUE); an empty slug makes /f/ a
+// dead route and squats the unique index for everyone else.
+const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{2,63}$/
+const INVALID_SLUG_MESSAGE = 'כתובת הטופס חייבת לכלול 3–64 תווים (אותיות באנגלית, ספרות ומקפים) ולהתחיל באות או בספרה'
+// update() returns zero rows (data:[], error:null) when RLS no longer matches
+// — e.g. the form was deleted elsewhere or the session expired. Treat as failure.
+const STALE_FORM_MESSAGE = 'לא ניתן לשמור - הטופס כבר לא קיים או שתוקף ההתחברות פג. יש להעתיק את השינויים לפני רענון הדף.'
+
 export function FormBuilder({ form: initialForm }: FormBuilderProps) {
   const supabase = useMemo(() => createClient(), [])
   
@@ -64,6 +72,10 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
   const selectedQuestion = questions.find(q => q.id === selectedQuestionId)
 
   const handleSave = useCallback(async () => {
+    if (!SLUG_PATTERN.test(form.slug)) {
+      toast.error(INVALID_SLUG_MESSAGE)
+      return
+    }
     setIsSaving(true)
     const updateData = {
       title: form.title,
@@ -73,15 +85,18 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       questions: questions,
       thank_you_message: form.thank_you_message,
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('forms')
       .update(updateData as never)
       .eq('id', form.id)
+      .select('id')
 
     if (error) {
-      toast.error(error.code === '23505' ? 'That form URL is already in use' : 'Failed to save form')
+      toast.error(error.code === '23505' ? 'כתובת הטופס הזו כבר תפוסה' : 'שמירת הטופס נכשלה')
+    } else if (!data || data.length === 0) {
+      toast.error(STALE_FORM_MESSAGE)
     } else {
-      toast.success('Form saved')
+      toast.success('הטופס נשמר')
       setHasUnsavedChanges(false)
     }
     setIsSaving(false)
@@ -89,13 +104,17 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
 
   const handlePublish = async () => {
     if (questions.length === 0) {
-      toast.error('Add at least one question before publishing')
+      toast.error('צריך להוסיף לפחות שאלה אחת לפני הפרסום')
+      return
+    }
+    if (!SLUG_PATTERN.test(form.slug)) {
+      toast.error(INVALID_SLUG_MESSAGE)
       return
     }
 
     setIsSaving(true)
     const newStatus: FormStatus = form.status === 'published' ? 'closed' : 'published'
-    
+
     const updateData = {
       status: newStatus,
       questions: questions,
@@ -105,16 +124,19 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       theme: form.theme,
       thank_you_message: form.thank_you_message,
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('forms')
       .update(updateData as never)
       .eq('id', form.id)
+      .select('id')
 
     if (error) {
-      toast.error(error.code === '23505' ? 'That form URL is already in use' : 'Failed to update form status')
+      toast.error(error.code === '23505' ? 'כתובת הטופס הזו כבר תפוסה' : 'עדכון סטטוס הטופס נכשל')
+    } else if (!data || data.length === 0) {
+      toast.error(STALE_FORM_MESSAGE)
     } else {
       setForm({ ...form, status: newStatus })
-      toast.success(newStatus === 'published' ? 'Form published!' : 'Form unpublished')
+      toast.success(newStatus === 'published' ? 'הטופס פורסם!' : 'פרסום הטופס בוטל')
       setShowPublishDialog(false)
       setHasUnsavedChanges(false)
     }
@@ -152,7 +174,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
   const copyFormLink = () => {
     const link = `${window.location.origin}/f/${form.slug}`
     navigator.clipboard.writeText(link)
-    toast.success('Link copied to clipboard')
+    toast.success('הקישור הועתק')
   }
 
   const currentTheme = themes[form.theme as ThemePreset] || themes.minimal
@@ -164,8 +186,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
         <div className="flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              <ArrowRight className="w-4 h-4 me-2" />
+              חזרה
             </Button>
           </Link>
           <Separator orientation="vertical" className="h-6" />
@@ -176,22 +198,22 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                 setForm({ ...form, title: e.target.value })
                 setHasUnsavedChanges(true)
               }}
-              className="text-lg font-semibold border-0 border-b-2 border-transparent bg-transparent rounded-none focus-visible:ring-0 focus-visible:border-blue-500 hover:border-slate-300 px-1 pr-7 max-w-xs transition-colors"
-              placeholder="Untitled Form"
+              className="text-lg font-semibold border-0 border-b-2 border-transparent bg-transparent rounded-none focus-visible:ring-0 focus-visible:border-blue-500 hover:border-slate-300 px-1 pe-7 max-w-xs transition-colors"
+              placeholder="טופס ללא שם"
             />
-            <Pencil className="w-3.5 h-3.5 text-slate-400 absolute right-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-0 transition-opacity pointer-events-none" />
+            <Pencil className="w-3.5 h-3.5 text-slate-400 absolute end-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-0 transition-opacity pointer-events-none" />
           </div>
           {form.status === 'published' && (
-            <Badge className="bg-emerald-100 text-emerald-700">Published</Badge>
+            <Badge className="bg-emerald-100 text-emerald-700">פורסם</Badge>
           )}
           {form.status === 'draft' && (
-            <Badge variant="secondary">Draft</Badge>
+            <Badge variant="secondary">טיוטה</Badge>
           )}
           {form.status === 'closed' && (
-            <Badge variant="secondary" className="bg-amber-100 text-amber-700">Closed</Badge>
+            <Badge variant="secondary" className="bg-amber-100 text-amber-700">סגור</Badge>
           )}
           {hasUnsavedChanges && (
-            <span className="text-sm text-slate-500">Unsaved changes</span>
+            <span className="text-sm text-slate-500">יש שינויים שלא נשמרו</span>
           )}
         </div>
 
@@ -199,13 +221,13 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
           {form.status === 'published' && (
             <>
               <Button variant="outline" size="sm" onClick={copyFormLink}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copy link
+                <Copy className="w-4 h-4 me-2" />
+                העתקת קישור
               </Button>
               <Link href={`/f/${form.slug}`} target="_blank">
                 <Button variant="outline" size="sm">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View
+                  <ExternalLink className="w-4 h-4 me-2" />
+                  צפייה
                 </Button>
               </Link>
             </>
@@ -216,8 +238,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
             onClick={handleSave}
             disabled={isSaving}
           >
-            <Save className="w-4 h-4 mr-2" />
-            Save
+            <Save className="w-4 h-4 me-2" />
+            שמירה
           </Button>
           <Button
             size="sm"
@@ -227,8 +249,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
               : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20'
             }
           >
-            <Globe className="w-4 h-4 mr-2" />
-            {form.status === 'published' ? 'Unpublish' : 'Publish'}
+            <Globe className="w-4 h-4 me-2" />
+            {form.status === 'published' ? 'ביטול פרסום' : 'פרסום'}
           </Button>
         </div>
       </header>
@@ -236,21 +258,21 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
+        <aside className="w-80 bg-white border-e border-slate-200 flex flex-col shrink-0 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col overflow-hidden">
             <div className="shrink-0 p-2 border-b border-slate-100">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="questions" className="text-xs">
-                  <FileText className="w-3 h-3 mr-1" />
-                  Questions
+                  <FileText className="w-3 h-3 me-1" />
+                  שאלות
                 </TabsTrigger>
                 <TabsTrigger value="design" className="text-xs">
-                  <Palette className="w-3 h-3 mr-1" />
-                  Design
+                  <Palette className="w-3 h-3 me-1" />
+                  עיצוב
                 </TabsTrigger>
                 <TabsTrigger value="settings" className="text-xs">
-                  <Settings className="w-3 h-3 mr-1" />
-                  Settings
+                  <Settings className="w-3 h-3 me-1" />
+                  הגדרות
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -261,8 +283,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                   onClick={() => setShowAddQuestion(true)}
                   className="w-full bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Question
+                  <Plus className="w-4 h-4 me-2" />
+                  הוספת שאלה
                 </Button>
               </div>
               
@@ -271,8 +293,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                   {questions.length === 0 ? (
                     <div className="text-center py-8 px-4">
                       <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                      <p className="text-sm text-slate-500">No questions yet</p>
-                      <p className="text-xs text-slate-400 mt-1">Add your first question to get started</p>
+                      <p className="text-sm text-slate-500">עדיין אין שאלות</p>
+                      <p className="text-xs text-slate-400 mt-1">אפשר להתחיל בהוספת השאלה הראשונה</p>
                     </div>
                   ) : (
                     <Reorder.Group axis="y" values={questions} onReorder={handleReorder}>
@@ -302,15 +324,15 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                                     <span className="text-xs font-medium text-slate-400">
                                       {index + 1}
                                     </span>
-                                    <span className="text-xs text-slate-400 capitalize">
-                                      {question.type.replace('_', ' ')}
+                                    <span className="text-xs text-slate-400">
+                                      {getQuestionTypeInfo(question.type)?.label}
                                     </span>
                                     {question.required && (
                                       <span className="text-xs text-red-500">*</span>
                                     )}
                                   </div>
                                   <p className="text-sm font-medium text-slate-900 truncate">
-                                    {question.title || 'Untitled question'}
+                                    {question.title || 'שאלה ללא כותרת'}
                                   </p>
                                 </div>
                                 <Button
@@ -338,7 +360,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
             <TabsContent value="design" className="flex-1 mt-0 overflow-auto data-[state=inactive]:hidden">
               <div className="p-4 space-y-6">
                 <div>
-                  <Label className="text-sm font-medium mb-3 block">Theme</Label>
+                  <Label className="text-sm font-medium mb-3 block">ערכת עיצוב</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {themeList.map((theme) => (
                       <button
@@ -348,7 +370,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                           setHasUnsavedChanges(true)
                         }}
                         className={`
-                          p-3 rounded-lg border-2 transition-all text-left
+                          p-3 rounded-lg border-2 transition-all text-start
                           ${form.theme === theme.id 
                             ? 'border-blue-500 ring-2 ring-blue-200' 
                             : 'border-slate-200 hover:border-slate-300'
@@ -360,7 +382,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                           style={{ backgroundColor: theme.backgroundColor }}
                         >
                           <div 
-                            className="w-1/2 h-full rounded-l flex items-center justify-center"
+                            className="w-1/2 h-full rounded-s flex items-center justify-center"
                             style={{ backgroundColor: theme.primaryColor }}
                           />
                         </div>
@@ -375,7 +397,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
             <TabsContent value="settings" className="flex-1 mt-0 overflow-auto data-[state=inactive]:hidden">
               <div className="p-4 space-y-6">
                 <div>
-                  <Label htmlFor="slug" className="text-sm font-medium">Form URL</Label>
+                  <Label htmlFor="slug" className="text-sm font-medium">כתובת הטופס</Label>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-sm text-slate-500">/f/</span>
                     <Input
@@ -393,7 +415,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                 </div>
 
                 <div>
-                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                  <Label htmlFor="description" className="text-sm font-medium">תיאור</Label>
                   <Textarea
                     id="description"
                     value={form.description || ''}
@@ -402,13 +424,13 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                       setHasUnsavedChanges(true)
                     }}
                     className="mt-2"
-                    placeholder="Optional form description..."
+                    placeholder="תיאור קצר לטופס (לא חובה)..."
                     rows={3}
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="thank_you" className="text-sm font-medium">Thank You Message</Label>
+                  <Label htmlFor="thank_you" className="text-sm font-medium">הודעת סיום</Label>
                   <Textarea
                     id="thank_you"
                     value={form.thank_you_message}
@@ -417,7 +439,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                       setHasUnsavedChanges(true)
                     }}
                     className="mt-2"
-                    placeholder="Thank you for your response!"
+                    placeholder="תודה על התשובה!"
                     rows={3}
                   />
                 </div>
@@ -430,9 +452,9 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
         <div className="flex-1 flex overflow-hidden">
           {/* Question Editor */}
           {selectedQuestion && (
-            <div className="w-96 bg-white border-r border-slate-200 overflow-auto">
+            <div className="w-96 bg-white border-e border-slate-200 overflow-auto">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-medium">Edit Question</h3>
+                <h3 className="font-medium">עריכת שאלה</h3>
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -455,7 +477,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden mb-4">
                 <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 border-b border-slate-200">
                   <Eye className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-600">Preview</span>
+                  <span className="text-sm font-medium text-slate-600">תצוגה מקדימה</span>
                 </div>
                 <div 
                   className="min-h-[500px]"
@@ -481,9 +503,9 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       <Dialog open={showAddQuestion} onOpenChange={setShowAddQuestion}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Add Question</DialogTitle>
+            <DialogTitle>הוספת שאלה</DialogTitle>
             <DialogDescription>
-              Choose a question type to add to your form
+              איזה סוג שאלה להוסיף לטופס?
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-3 py-4">
@@ -491,7 +513,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
               <button
                 key={qt.type}
                 onClick={() => addQuestion(qt.type)}
-                className="p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left group"
+                className="p-4 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-start group"
               >
                 <qt.icon className="w-6 h-6 text-slate-400 group-hover:text-blue-600 mb-2" />
                 <p className="font-medium text-sm text-slate-900">{qt.label}</p>
@@ -507,25 +529,25 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {form.status === 'published' ? 'Unpublish form?' : 'Publish form?'}
+              {form.status === 'published' ? 'לבטל את פרסום הטופס?' : 'לפרסם את הטופס?'}
             </DialogTitle>
             <DialogDescription>
-              {form.status === 'published' 
-                ? 'This will make your form inaccessible to respondents. Existing responses will be kept.'
-                : 'Your form will be accessible at:'
+              {form.status === 'published'
+                ? 'הטופס לא יהיה זמין יותר למשיבים. התשובות שכבר התקבלו יישמרו.'
+                : 'הטופס יהיה זמין בכתובת:'
               }
             </DialogDescription>
           </DialogHeader>
           {form.status !== 'published' && (
             <div className="p-3 bg-slate-50 rounded-lg">
-              <code className="text-sm text-blue-600">
+              <code dir="ltr" className="text-sm text-blue-600 inline-block text-start">
                 {typeof window !== 'undefined' ? window.location.origin : ''}/f/{form.slug}
               </code>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPublishDialog(false)}>
-              Cancel
+              ביטול
             </Button>
             <Button 
               onClick={handlePublish}
@@ -535,7 +557,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                 : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20'
               }
             >
-              {isSaving ? 'Saving...' : form.status === 'published' ? 'Unpublish' : 'Publish'}
+              {isSaving ? 'שומר...' : form.status === 'published' ? 'ביטול פרסום' : 'פרסום'}
             </Button>
           </DialogFooter>
         </DialogContent>

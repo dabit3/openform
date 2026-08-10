@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/ui/logo'
-import { ArrowRight, Sparkles, Zap, Shield, Palette } from 'lucide-react'
+import { ArrowLeft, Sparkles, Zap, Shield, Palette } from 'lucide-react'
 
 async function getUser() {
   try {
@@ -40,7 +40,7 @@ export default async function HomePage() {
       />
       
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50">
+      <nav className="fixed top-0 start-0 end-0 z-50">
         <div 
           className="absolute inset-0 h-28 backdrop-blur-md"
           style={{
@@ -55,21 +55,21 @@ export default async function HomePage() {
             {user ? (
               <Link href="/dashboard">
                 <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/30 hover:-translate-y-0.5">
-                  Dashboard
-                  <ArrowRight className="ml-2 w-4 h-4" />
+                  לוח הבקרה
+                  <ArrowLeft className="ms-2 w-4 h-4" />
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/login">
                   <Button variant="ghost" className="text-slate-600 hover:text-slate-900">
-                    Sign in
+                    התחברות
                   </Button>
                 </Link>
                 <Link href="/login">
                   <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/30 hover:-translate-y-0.5">
-                    Get Started
-                    <ArrowRight className="ml-2 w-4 h-4" />
+                    התחל בחינם
+                    <ArrowLeft className="ms-2 w-4 h-4" />
                   </Button>
                 </Link>
               </>
@@ -83,31 +83,31 @@ export default async function HomePage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-700 text-sm font-medium mb-8 border border-blue-100">
             <Sparkles className="w-4 h-4" />
-            Free & Open Source
+            חינם ובקוד פתוח
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-bold text-slate-900 leading-tight mb-6 tracking-tight">
-            Forms that feel{' '}
+            טפסים שמרגישים{' '}
             <span className="text-blue-600">
-              human
+              אנושיים
             </span>
           </h1>
-          
+
           <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Create beautiful, engaging forms that people actually want to fill out. 
-            One question at a time, just like a conversation.
+            בונים טפסים יפים שאנשים באמת רוצים למלא.
+            שאלה אחת בכל פעם, בדיוק כמו שיחה.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/login">
               <Button size="lg" className="h-14 px-8 text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/25 transition-all hover:shadow-blue-600/35 hover:-translate-y-0.5">
-                Start creating for free
-                <ArrowRight className="ml-2 w-5 h-5" />
+                יצירת טופס בחינם
+                <ArrowLeft className="ms-2 w-5 h-5" />
               </Button>
             </Link>
             <Link href="#features">
               <Button size="lg" variant="outline" className="h-14 px-8 text-lg border-slate-300 hover:border-slate-400 hover:bg-slate-50">
-                See how it works
+                איך זה עובד
               </Button>
             </Link>
           </div>
@@ -126,7 +126,7 @@ export default async function HomePage() {
                 <div className="w-3 h-3 rounded-full bg-slate-300"></div>
               </div>
               <div className="flex-1 flex justify-center">
-                <div className="px-4 py-1 bg-white rounded-md text-xs text-slate-500 font-medium">
+                <div dir="ltr" className="px-4 py-1 bg-white rounded-md text-xs text-slate-500 font-medium">
                   openform.app/your-form
                 </div>
               </div>
@@ -137,13 +137,13 @@ export default async function HomePage() {
               <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl"></div>
               
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-lg text-center border border-white/20">
-                <h3 className="text-3xl font-bold text-white mb-4">What&apos;s your name?</h3>
+                <h3 className="text-3xl font-bold text-white mb-4">איך קוראים לך?</h3>
                 <div className="bg-white/20 rounded-lg h-14 flex items-center px-4 border border-white/10">
-                  <span className="text-white/60 text-lg">Type your answer here...</span>
+                  <span className="text-white/60 text-lg">כתוב כאן את התשובה...</span>
                 </div>
                 <div className="mt-6 flex items-center justify-center gap-3">
-                  <span className="text-white/60 text-sm">Press</span>
-                  <kbd className="px-3 py-1 bg-white/20 rounded text-white text-sm font-medium border border-white/10">Enter ↵</kbd>
+                  <span className="text-white/60 text-sm">לחץ על</span>
+                  <kbd dir="ltr" className="px-3 py-1 bg-white/20 rounded text-white text-sm font-medium border border-white/10">Enter ↵</kbd>
                 </div>
               </div>
             </div>
@@ -156,10 +156,10 @@ export default async function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
-              Everything you need to create amazing forms
+              כל מה שצריך כדי לבנות טפסים מעולים
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Powerful features that make form building a breeze
+              כלים חזקים שהופכים בניית טפסים למשחק ילדים
             </p>
           </div>
           
@@ -168,9 +168,9 @@ export default async function HomePage() {
               <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
                 <Zap className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">One at a Time</h3>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">שאלה אחת בכל פעם</h3>
               <p className="text-slate-600">
-                Questions appear one by one, creating a focused, distraction-free experience for respondents.
+                השאלות מופיעות אחת אחרי השנייה, בלי הסחות דעת. ככה קל יותר להתרכז ולהגיע עד הסוף.
               </p>
             </div>
             
@@ -178,9 +178,9 @@ export default async function HomePage() {
               <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-4">
                 <Palette className="w-6 h-6 text-sky-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Beautiful Themes</h3>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">ערכות עיצוב מרהיבות</h3>
               <p className="text-slate-600">
-                Choose from stunning preset themes that make your forms look professional and on-brand.
+                אפשר לבחור מתוך ערכות עיצוב מוכנות שגורמות לטפסים שלך להיראות מקצועיים ומותאמים למותג.
               </p>
             </div>
             
@@ -188,9 +188,9 @@ export default async function HomePage() {
               <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-emerald-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Privacy First</h3>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">פרטיות קודם כל</h3>
               <p className="text-slate-600">
-                Your data stays yours. Export responses anytime, delete when you want.
+                המידע נשאר שלך. אפשר לייצא את התשובות בכל רגע ולמחוק אותן מתי שתרצה.
               </p>
             </div>
           </div>
@@ -202,18 +202,18 @@ export default async function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
-              13 question types to choose from
+              13 סוגי שאלות לבחירה
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              From simple text to file uploads, we&apos;ve got you covered
+              מטקסט פשוט ועד העלאת קבצים, יש כאן הכול
             </p>
           </div>
-          
+
           <div className="flex flex-wrap justify-center gap-3">
             {[
-              'Short Text', 'Long Text', 'Dropdown', 'Checkboxes',
-              'Email', 'Phone', 'Number', 'Date', 'Rating', 'Opinion Scale',
-              'Yes/No', 'File Upload', 'Website URL'
+              'טקסט קצר', 'טקסט ארוך', 'רשימה נפתחת', 'תיבות סימון',
+              'אימייל', 'טלפון', 'מספר', 'תאריך', 'דירוג', 'סולם דעות',
+              'כן/לא', 'העלאת קובץ', 'כתובת אתר'
             ].map((type) => (
               <span
                 key={type}
@@ -235,15 +235,15 @@ export default async function HomePage() {
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-sky-400/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
             
             <h2 className="text-3xl md:text-4xl font-bold mb-4 relative">
-              Ready to create your first form?
+              מוכן ליצור את הטופס הראשון שלך?
             </h2>
             <p className="text-lg text-blue-100 mb-8 relative">
-              Join thousands of people using OpenForm to collect responses.
+              אלפי אנשים כבר אוספים תשובות עם OpenForm.
             </p>
             <Link href="/login">
               <Button size="lg" className="h-14 px-8 text-lg bg-white text-blue-600 hover:bg-blue-50 shadow-xl shadow-blue-900/20 relative transition-all hover:-translate-y-0.5">
-                Get started for free
-                <ArrowRight className="ml-2 w-5 h-5" />
+                התחל בחינם
+                <ArrowLeft className="ms-2 w-5 h-5" />
               </Button>
             </Link>
           </div>
@@ -254,17 +254,17 @@ export default async function HomePage() {
       <footer className="relative z-10 py-8 px-6 border-t border-slate-100 bg-white">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-600 text-sm">
-            © 2026 OpenForm. Open source and free forever.
+            © 2026 OpenForm. קוד פתוח, חינם לתמיד.
           </p>
           <div className="flex items-center gap-6">
             <a href="https://github.com" className="text-slate-500 hover:text-slate-700 text-sm transition-colors">
               GitHub
             </a>
             <a href="#" className="text-slate-500 hover:text-slate-700 text-sm transition-colors">
-              Privacy
+              פרטיות
             </a>
             <a href="#" className="text-slate-500 hover:text-slate-700 text-sm transition-colors">
-              Terms
+              תנאי שימוש
             </a>
           </div>
         </div>

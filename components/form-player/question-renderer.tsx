@@ -31,13 +31,13 @@ function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: F
     setUploadError(null)
 
     if (!uploadToken) {
-      setUploadError('Uploads are not available for this question')
+      setUploadError('העלאת קבצים לא זמינה בשאלה הזו')
       return
     }
 
     const maxFileSize = question.maxFileSize || 10
     if (file.size > maxFileSize * 1024 * 1024) {
-      setUploadError(`File too large. Maximum size is ${maxFileSize}MB`)
+      setUploadError(`הקובץ גדול מדי. הגודל המרבי הוא ${maxFileSize}MB`)
       return
     }
 
@@ -56,7 +56,7 @@ function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: F
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Upload failed')
+        throw new Error(result.error || 'ההעלאה נכשלה')
       }
 
       // Success - store the R2 URL
@@ -67,7 +67,7 @@ function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: F
         size: result.file.size,
       })
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Upload failed')
+      setUploadError(error instanceof Error ? error.message : 'ההעלאה נכשלה')
     } finally {
       setIsUploading(false)
     }
@@ -111,7 +111,7 @@ function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: F
             </p>
             {value.size && (
               <p className="text-sm opacity-50" style={{ color: theme.textColor }}>
-                {(value.size / 1024).toFixed(1)} KB
+                <span dir="ltr">{(value.size / 1024).toFixed(1)} KB</span>
               </p>
             )}
           </div>
@@ -132,7 +132,7 @@ function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: F
           }}
         >
           <Loader2 className="w-8 h-8 animate-spin" style={{ color: theme.primaryColor }} />
-          <p className="font-medium">Uploading...</p>
+          <p className="font-medium">מעלה...</p>
         </div>
       ) : (
         <div>
@@ -149,9 +149,9 @@ function FileUploadQuestion({ uploadToken, question, value, onChange, theme }: F
           >
             <Upload className="w-8 h-8 opacity-50" />
             <div className="text-center">
-              <p className="font-medium">Click to upload</p>
+              <p className="font-medium">העלאת קובץ</p>
               <p className="text-sm opacity-50 mt-1">
-                Images & PDFs up to {question.maxFileSize || 10}MB
+                תמונות וקובצי PDF עד {question.maxFileSize || 10}MB
               </p>
             </div>
           </motion.button>
@@ -207,7 +207,7 @@ export function QuestionRenderer({
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder={question.placeholder || 'Type your answer here...'}
+          placeholder={question.placeholder || 'כאן כותבים את התשובה...'}
           className="text-xl md:text-2xl h-auto py-3 px-0 border-0 border-b-2 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:opacity-40"
           style={inputStyles}
           autoFocus
@@ -221,7 +221,7 @@ export function QuestionRenderer({
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder={question.placeholder || 'Type your answer here...'}
+          placeholder={question.placeholder || 'כאן כותבים את התשובה...'}
           className="text-lg md:text-xl min-h-[150px] p-4 border-2 rounded-xl bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:opacity-40 resize-none"
           style={inputStyles}
           autoFocus
@@ -258,7 +258,7 @@ export function QuestionRenderer({
                   e.stopPropagation()
                   onSubmit(option)
                 }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-start transition-all"
                 style={{
                   borderColor: isSelected ? theme.primaryColor : `${theme.textColor}20`,
                   backgroundColor: isSelected ? `${theme.primaryColor}10` : 'transparent',
@@ -304,7 +304,7 @@ export function QuestionRenderer({
                     : [...selectedValues, option]
                   onChange(newValues)
                 }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-start transition-all"
                 style={{
                   borderColor: isSelected ? theme.primaryColor : `${theme.textColor}20`,
                   backgroundColor: isSelected ? `${theme.primaryColor}10` : 'transparent',
@@ -331,12 +331,14 @@ export function QuestionRenderer({
             )
           })}
           <p className="text-sm opacity-50 mt-2" style={{ color: theme.textColor }}>
-            Select all that apply
+            אפשר לבחור יותר מאפשרות אחת
           </p>
         </div>
       )
 
     case 'yes_no':
+      // 'Yes'/'No' are the stored answer values the API validates; only the label is translated.
+      const yesNoLabels: Record<string, string> = { Yes: 'כן', No: 'לא' }
       return (
         <div className="flex gap-4">
           {['Yes', 'No'].map((option) => {
@@ -370,11 +372,11 @@ export function QuestionRenderer({
                     <Check className="w-4 h-4" style={{ color: theme.backgroundColor }} />
                   ) : (
                     <span className="text-sm font-medium" style={{ color: theme.textColor }}>
-                      {option[0]}
+                      {yesNoLabels[option][0]}
                     </span>
                   )}
                 </div>
-                <span className="text-xl font-medium">{option}</span>
+                <span className="text-xl font-medium">{yesNoLabels[option]}</span>
               </motion.button>
             )
           })}
@@ -382,16 +384,19 @@ export function QuestionRenderer({
       )
 
     case 'rating':
+      // Render the configured range; the server rejects ratings below minValue,
+      // so 1-based stars would let respondents pick an unsubmittable value.
+      const minRating = question.minValue || 1
       const maxRating = question.maxValue || 5
       const currentRating = typeof value === 'number' ? value : 0
       return (
         <div className="flex gap-2">
-          {Array.from({ length: maxRating }).map((_, index) => {
-            const starValue = index + 1
+          {Array.from({ length: maxRating - minRating + 1 }).map((_, index) => {
+            const starValue = minRating + index
             const isActive = starValue <= currentRating
             return (
               <motion.button
-                key={index}
+                key={starValue}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => onChange(starValue)}
@@ -458,7 +463,7 @@ export function QuestionRenderer({
     default:
       return (
         <p style={{ color: theme.textColor }} className="opacity-50">
-          Unsupported question type: {question.type}
+          סוג שאלה שאינו נתמך: {question.type}
         </p>
       )
   }

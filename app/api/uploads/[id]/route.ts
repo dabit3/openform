@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: UploadRouteProps) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'אין הרשאה' }, { status: 401 })
 
   const admin = createAdminClient()
   const { data: upload } = await admin
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: UploadRouteProps) {
     .not('response_id', 'is', null)
     .maybeSingle()
 
-  if (!upload) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+  if (!upload) return NextResponse.json({ error: 'הקובץ לא נמצא' }, { status: 404 })
 
   const { data: form } = await admin
     .from('forms')
@@ -35,11 +35,11 @@ export async function GET(request: NextRequest, { params }: UploadRouteProps) {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!form) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+  if (!form) return NextResponse.json({ error: 'הקובץ לא נמצא' }, { status: 404 })
 
   try {
     const object = await getR2Object(upload.object_key)
-    if (!object.Body) return NextResponse.json({ error: 'File not found' }, { status: 404 })
+    if (!object.Body) return NextResponse.json({ error: 'הקובץ לא נמצא' }, { status: 404 })
 
     const download = request.nextUrl.searchParams.get('download') === '1'
     return new NextResponse(object.Body.transformToWebStream(), {
@@ -53,6 +53,6 @@ export async function GET(request: NextRequest, { params }: UploadRouteProps) {
     })
   } catch (error) {
     console.error('File download error:', error)
-    return NextResponse.json({ error: 'File unavailable' }, { status: 502 })
+    return NextResponse.json({ error: 'הקובץ אינו זמין' }, { status: 502 })
   }
 }

@@ -25,7 +25,7 @@ export default function LoginPage() {
       },
     })
     if (error) {
-      toast.error('Failed to sign in with Google')
+      toast.error('ההתחברות עם Google נכשלה')
       setIsLoading(false)
     }
   }
@@ -33,7 +33,7 @@ export default function LoginPage() {
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) {
-      toast.error('Please enter your email')
+      toast.error('צריך להזין כתובת אימייל')
       return
     }
     
@@ -47,7 +47,7 @@ export default function LoginPage() {
     })
 
     if (error) {
-      toast.error('Failed to send magic link')
+      toast.error('שליחת קישור הקסם נכשלה')
       setIsLoading(false)
     } else {
       setEmailSent(true)
@@ -75,18 +75,18 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Check your email</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">בדוק את האימייל</h1>
           <p className="text-slate-600 mb-6">
-            We&apos;ve sent a magic link to <strong className="text-slate-900">{email}</strong>
+            שלחנו קישור קסם אל <strong dir="ltr" className="text-slate-900">{email}</strong>
           </p>
           <p className="text-sm text-slate-500">
-            Click the link in your email to sign in. You can close this tab.
+            לחץ על הקישור שקיבלת כדי להתחבר. אפשר לסגור את הלשונית הזאת.
           </p>
           <button
             onClick={() => setEmailSent(false)}
             className="mt-6 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >
-            Use a different email
+            שימוש בכתובת אימייל אחרת
           </button>
         </motion.div>
       </div>
@@ -121,7 +121,7 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <Logo href="/" size="lg" />
           </div>
-          <p className="mt-3 text-slate-600">Create beautiful forms in minutes</p>
+          <p className="mt-3 text-slate-600">בונים טפסים יפים בכמה דקות</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 border border-slate-100">
@@ -131,7 +131,7 @@ export default function LoginPage() {
             variant="outline"
             className="w-full h-12 text-base font-medium border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all"
           >
-            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 me-3" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -149,22 +149,23 @@ export default function LoginPage() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Continue with Google
+            המשך עם Google
           </Button>
 
           <div className="relative my-6">
             <Separator />
             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-sm text-slate-500">
-              or
+              או
             </span>
           </div>
 
           <form onSubmit={handleMagicLink} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700">Email address</Label>
+              <Label htmlFor="email" className="text-slate-700">כתובת אימייל</Label>
               <Input
                 id="email"
                 type="email"
+                dir="ltr"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -179,24 +180,24 @@ export default function LoginPage() {
             >
               {isLoading ? (
                 <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ms-1 me-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Sending...
+                  שולח...
                 </span>
               ) : (
-                'Send magic link'
+                'שליחת קישור קסם'
               )}
             </Button>
           </form>
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          By continuing, you agree to our{' '}
-          <a href="#" className="text-blue-600 hover:text-blue-700 transition-colors">Terms of Service</a>
-          {' '}and{' '}
-          <a href="#" className="text-blue-600 hover:text-blue-700 transition-colors">Privacy Policy</a>
+          בהמשך השימוש אתה מאשר את{' '}
+          <a href="#" className="text-blue-600 hover:text-blue-700 transition-colors">תנאי השימוש</a>
+          {' '}ואת{' '}
+          <a href="#" className="text-blue-600 hover:text-blue-700 transition-colors">מדיניות הפרטיות</a>
         </p>
       </motion.div>
     </div>

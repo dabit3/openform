@@ -11,7 +11,7 @@ export async function DELETE(_request: Request, { params }: FormRouteProps) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'אין הרשאה' }, { status: 401 })
 
   const admin = createAdminClient()
   const { data: form } = await admin
@@ -20,7 +20,7 @@ export async function DELETE(_request: Request, { params }: FormRouteProps) {
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle()
-  if (!form) return NextResponse.json({ error: 'Form not found' }, { status: 404 })
+  if (!form) return NextResponse.json({ error: 'הטופס לא נמצא' }, { status: 404 })
 
   const { data: uploads } = await admin.from('uploads').select('object_key').eq('form_id', id)
 
@@ -31,6 +31,6 @@ export async function DELETE(_request: Request, { params }: FormRouteProps) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Form deletion error:', error)
-    return NextResponse.json({ error: 'Failed to delete form' }, { status: 500 })
+    return NextResponse.json({ error: 'מחיקת הטופס נכשלה' }, { status: 500 })
   }
 }

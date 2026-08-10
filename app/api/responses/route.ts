@@ -2,19 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { QuestionConfig, Json } from '@/lib/database.types'
 import { getClientIp, consumeRateLimit } from '@/lib/security/rate-limit'
-import { validateResponseAnswers } from '@/lib/security/response-validation'
+import { validateResponseAnswers, ResponseValidationError } from '@/lib/security/response-validation'
+import { readBoundedText } from '@/lib/security/body-limit'
 
 const MAX_RESPONSE_BYTES = 64 * 1024
 
 export async function POST(request: NextRequest) {
-  const contentLength = Number(request.headers.get('content-length') || 0)
-  if (contentLength > MAX_RESPONSE_BYTES) {
-    return NextResponse.json({ error: 'Response is too large' }, { status: 413 })
-  }
-
   try {
-    const bodyText = await request.text()
-    if (Buffer.byteLength(bodyText) > MAX_RESPONSE_BYTES) {
+    const bodyText = await readBoundedText(request, MAX_RESPONSE_BYTES)
+    if (bodyText === null) {
       return NextResponse.json({ error: 'Response is too large' }, { status: 413 })
     }
 
@@ -86,12 +82,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true }, { status: 201 })
   } catch (error) {
     if (error instanceof SyntaxError) {
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+      return NextResponse.json({ error: 'מבנה הנתונים לא תקין' }, { status: 400 })
     }
-    if (error instanceof Error && error.message && !error.message.includes('Supabase')) {
+    if (error instanceof ResponseValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
     console.error('Response submission error:', error)
-    return NextResponse.json({ error: 'Failed to submit response' }, { status: 500 })
+    return NextResponse.json({ error: 'שליחת התשובה נכשלה' }, { status: 500 })
   }
 }

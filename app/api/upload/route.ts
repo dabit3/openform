@@ -4,6 +4,7 @@ import { QuestionConfig } from '@/lib/database.types'
 import { deleteR2Objects, isR2Configured, putR2Object } from '@/lib/r2'
 import { consumeRateLimit, getClientIp } from '@/lib/security/rate-limit'
 import { verifyUploadToken } from '@/lib/security/upload-token'
+import { cappedRequest } from '@/lib/security/body-limit'
 
 const SUPPORTED_FILE_TYPES = [
   'image/jpeg',
@@ -35,7 +36,9 @@ function hasValidFileSignature(buffer: Buffer, fileType: string): boolean {
 
 async function cleanupAbandonedUploads(): Promise<void> {
   const admin = createAdminClient()
-  const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  // 24h, comfortably past any plausible open form session, so a slow respondent's
+  // pending upload is not GC'd out from under them by another form's upload.
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const { data: abandoned } = await admin
     .from('uploads')
     .select('id, object_key')
@@ -49,15 +52,10 @@ async function cleanupAbandonedUploads(): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
-  const contentLength = Number(request.headers.get('content-length') || 0)
-  if (contentLength > MAX_REQUEST_BYTES) {
-    return NextResponse.json({ error: 'Upload request is too large' }, { status: 413 })
-  }
-
   const token = request.headers.get('x-upload-token')
   const tokenPayload = token ? verifyUploadToken(token) : null
   if (!tokenPayload) {
-    return NextResponse.json({ error: 'Invalid or expired upload authorization' }, { status: 401 })
+    return NextResponse.json({ error: 'הרשאת ההעלאה אינה תקינה או שפג תוקפה' }, { status: 401 })
   }
 
   try {
@@ -66,7 +64,7 @@ export async function POST(request: NextRequest) {
       consumeRateLimit('upload-form', tokenPayload.formId, 100, 60 * 60),
     ])
     if (!ipAllowed || !formAllowed) {
-      return NextResponse.json({ error: 'Too many uploads. Please try again later.' }, { status: 429 })
+      return NextResponse.json({ error: 'יותר מדי העלאות. יש לנסות שוב מאוחר יותר.' }, { status: 429 })
     }
 
     const admin = createAdminClient()
@@ -80,36 +78,43 @@ export async function POST(request: NextRequest) {
     const question = (form?.questions as QuestionConfig[] | undefined)
       ?.find(candidate => candidate.id === tokenPayload.questionId && candidate.type === 'file_upload')
     if (!question) {
-      return NextResponse.json({ error: 'Published upload question not found' }, { status: 404 })
+      return NextResponse.json({ error: 'שאלת ההעלאה לא נמצאה בטופס שפורסם' }, { status: 404 })
     }
 
-    const formData = await request.formData()
+    // Enforce the size cap while streaming; the body is never fully buffered
+    // past MAX_REQUEST_BYTES even if Content-Length lies or is absent.
+    let formData: FormData
+    try {
+      formData = await cappedRequest(request, MAX_REQUEST_BYTES).formData()
+    } catch {
+      return NextResponse.json({ error: 'הקובץ גדול מדי' }, { status: 413 })
+    }
     const file = formData.get('file')
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return NextResponse.json({ error: 'לא נבחר קובץ' }, { status: 400 })
     }
 
     const configuredTypes = question.allowedFileTypes || ['image/*', 'application/pdf']
     if (!SUPPORTED_FILE_TYPES.includes(file.type as typeof SUPPORTED_FILE_TYPES[number])
       || !isAllowedByQuestion(file.type, configuredTypes)) {
-      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
+      return NextResponse.json({ error: 'סוג הקובץ אינו נתמך' }, { status: 400 })
     }
 
     const maxFileSizeMb = Math.min(Math.max(question.maxFileSize || 10, 1), 25)
     if (file.size > maxFileSizeMb * 1024 * 1024) {
       return NextResponse.json(
-        { error: `File too large. Maximum size is ${maxFileSizeMb}MB` },
+        { error: `הקובץ גדול מדי. הגודל המרבי הוא ${maxFileSizeMb}MB` },
         { status: 400 }
       )
     }
 
     if (!isR2Configured()) {
-      return NextResponse.json({ error: 'File storage is not configured', configured: false }, { status: 503 })
+      return NextResponse.json({ error: 'אחסון הקבצים אינו מוגדר', configured: false }, { status: 503 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     if (!hasValidFileSignature(buffer, file.type)) {
-      return NextResponse.json({ error: 'File contents do not match the selected file type' }, { status: 400 })
+      return NextResponse.json({ error: 'תוכן הקובץ אינו תואם לסוג הקובץ שנבחר' }, { status: 400 })
     }
 
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_') || 'upload'
@@ -151,7 +156,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: 'העלאת הקובץ נכשלה' }, { status: 500 })
   }
 }
 

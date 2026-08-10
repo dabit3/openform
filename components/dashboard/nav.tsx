@@ -28,7 +28,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) {
-      toast.error('Failed to sign out')
+      toast.error('ההתנתקות נכשלה')
     } else {
       router.push('/')
       router.refresh()
@@ -39,7 +39,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
   const avatarUrl = user.user_metadata?.avatar_url
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60">
+    <nav className="fixed top-0 start-0 end-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Logo href="/dashboard" />
@@ -48,7 +48,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
               href="/dashboard" 
               className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
             >
-              My Forms
+              הטפסים שלי
             </Link>
           </div>
         </div>
@@ -56,7 +56,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
         <div className="flex items-center gap-4">
           <Link href="/forms/new">
             <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/30 hover:-translate-y-0.5">
-              Create Form
+              טופס חדש
             </Button>
           </Link>
 
@@ -64,7 +64,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={avatarUrl} alt={user.email || 'User'} />
+                  <AvatarImage src={avatarUrl} alt={user.email || 'משתמש'} />
                   <AvatarFallback className="bg-blue-600 text-white font-medium">
                     {initials}
                   </AvatarFallback>
@@ -85,20 +85,20 @@ export function DashboardNav({ user }: DashboardNavProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/dashboard" className="cursor-pointer">
-                  <UserIcon className="mr-2 h-4 w-4" />
-                  My Forms
+                  <UserIcon className="me-2 h-4 w-4" />
+                  הטפסים שלי
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  <Settings className="me-2 h-4 w-4" />
+                  הגדרות
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                <LogOut className="me-2 h-4 w-4 rtl:-scale-x-100" />
+                התנתקות
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

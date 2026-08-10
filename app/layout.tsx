@@ -1,36 +1,45 @@
 import type { Metadata } from "next";
-import { DM_Sans, Plus_Jakarta_Sans, Outfit, Sora, Inter } from "next/font/google";
+import {
+  Heebo,
+  Assistant,
+  Rubik,
+  Varela_Round,
+  Noto_Sans_Hebrew,
+} from "next/font/google";
+import { DirectionProvider } from "@/components/ui/direction";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
+const heebo = Heebo({
+  variable: "--font-heebo",
+  subsets: ["hebrew", "latin"],
 });
 
-const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta",
-  subsets: ["latin"],
+const assistant = Assistant({
+  variable: "--font-assistant",
+  subsets: ["hebrew", "latin"],
 });
 
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
+const rubik = Rubik({
+  variable: "--font-rubik",
+  subsets: ["hebrew", "latin"],
 });
 
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
+const varelaRound = Varela_Round({
+  variable: "--font-varela-round",
+  subsets: ["hebrew", "latin"],
+  weight: "400",
 });
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
+const notoSansHebrew = Noto_Sans_Hebrew({
+  variable: "--font-noto-sans-hebrew",
+  subsets: ["hebrew", "latin"],
 });
 
 export const metadata: Metadata = {
-  title: "OpenForm - Create Beautiful Forms",
-  description: "Build stunning, TypeForm-style forms in minutes. Free and open source.",
+  title: "OpenForm - יצירת טפסים מעוצבים",
+  description:
+    "בניית טפסים מרשימים בסגנון TypeForm תוך דקות. חינם ובקוד פתוח.",
 };
 
 export default function RootLayout({
@@ -39,11 +48,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="he" dir="rtl">
       <body
-        className={`${dmSans.variable} ${plusJakarta.variable} ${outfit.variable} ${sora.variable} ${inter.variable} antialiased`}
+        className={`${heebo.variable} ${assistant.variable} ${rubik.variable} ${varelaRound.variable} ${notoSansHebrew.variable} antialiased`}
       >
-        {children}
+        <DirectionProvider dir="rtl">{children}</DirectionProvider>
         <Toaster richColors position="top-center" />
       </body>
     </html>

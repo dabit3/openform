@@ -29,10 +29,10 @@ export function DeleteFormButton({ formId, formTitle }: DeleteFormButtonProps) {
     const response = await fetch(`/api/forms/${formId}`, { method: 'DELETE' })
 
     if (!response.ok) {
-      toast.error('Failed to delete form')
+      toast.error('מחיקת הטופס נכשלה')
       setIsDeleting(false)
     } else {
-      toast.success('Form deleted successfully')
+      toast.success('הטופס נמחק')
       setOpen(false)
       router.refresh()
     }
@@ -47,29 +47,29 @@ export function DeleteFormButton({ formId, formTitle }: DeleteFormButtonProps) {
         }}
         className="cursor-pointer text-red-600 focus:text-red-600"
       >
-        <Trash2 className="mr-2 h-4 w-4" />
-        Delete
+        <Trash2 className="me-2 h-4 w-4" />
+        מחיקה
       </DropdownMenuItem>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete form</DialogTitle>
+            <DialogTitle>מחיקת טופס</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{formTitle || 'Untitled Form'}&quot;? 
-              This action cannot be undone. All responses will also be deleted.
+              למחוק את &quot;{formTitle || 'טופס ללא שם'}&quot;?
+              לא ניתן לבטל את הפעולה, וגם כל התשובות יימחקו.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+              ביטול
             </Button>
             <Button 
               variant="destructive" 
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? 'Deleting...' : 'Delete form'}
+              {isDeleting ? 'מוחק...' : 'מחיקת הטופס'}
             </Button>
           </DialogFooter>
         </DialogContent>

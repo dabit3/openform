@@ -2,7 +2,13 @@ import { Json, QuestionConfig } from '@/lib/database.types'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_PATTERN = /^[+]?\d[\d\s\-().]{2,30}$/
+// Allow a leading '+' , digit, or '(' so common formats like (0)3-1234567 pass.
+// Exported so the client player validates with the exact same rule (no dead-ends).
+export const PHONE_PATTERN = /^[+]?[(\d][\d\s\-().]{2,30}$/
+
+// Thrown for respondent-facing validation failures. The API route returns its
+// message as a 400; anything else is an internal 500 (never leaked verbatim).
+export class ResponseValidationError extends Error {}
 
 export interface UploadReference {
   questionId: string
@@ -15,19 +21,19 @@ export interface ValidatedResponse {
 }
 
 function invalid(message: string): never {
-  throw new Error(message)
+  throw new ResponseValidationError(message)
 }
 
 function stringAnswer(value: Json, maxLength: number): string {
-  if (typeof value !== 'string') invalid('Expected a text answer')
+  if (typeof value !== 'string') invalid('נדרשת תשובת טקסט')
   const normalized = value.trim()
-  if (normalized.length > maxLength) invalid(`Answer exceeds ${maxLength} characters`)
+  if (normalized.length > maxLength) invalid(`התשובה ארוכה מדי, עד ${maxLength} תווים`)
   return normalized
 }
 
 function numericAnswer(value: Json): number {
   const number = typeof value === 'number' ? value : Number(value)
-  if (!Number.isFinite(number)) invalid('Expected a number')
+  if (!Number.isFinite(number)) invalid('נדרש מספר')
   return number
 }
 
@@ -36,13 +42,13 @@ export function validateResponseAnswers(
   candidate: unknown
 ): ValidatedResponse {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
-    invalid('Answers must be an object')
+    invalid('מבנה התשובות לא תקין')
   }
 
   const supplied = candidate as Record<string, Json>
   const knownQuestionIds = new Set(questions.map(question => question.id))
   if (Object.keys(supplied).some(questionId => !knownQuestionIds.has(questionId))) {
-    invalid('Response contains an unknown question')
+    invalid('התשובה מכילה שאלה שלא קיימת בטופס')
   }
 
   const answers: Record<string, Json> = {}
@@ -54,7 +60,7 @@ export function validateResponseAnswers(
       || (Array.isArray(value) && value.length === 0)
 
     if (isEmpty) {
-      if (question.required) invalid(`A required answer is missing: ${question.title}`)
+      if (question.required) invalid(`חסרה תשובה לשאלת חובה: ${question.title}`)
       continue
     }
 
@@ -67,13 +73,13 @@ export function validateResponseAnswers(
         break
       case 'email': {
         const email = stringAnswer(value, 320)
-        if (!EMAIL_PATTERN.test(email)) invalid('Invalid email address')
+        if (!EMAIL_PATTERN.test(email)) invalid('כתובת האימייל לא תקינה')
         answers[question.id] = email
         break
       }
       case 'phone': {
         const phone = stringAnswer(value, 32)
-        if (!PHONE_PATTERN.test(phone)) invalid('Invalid phone number')
+        if (!PHONE_PATTERN.test(phone)) invalid('מספר הטלפון לא תקין')
         answers[question.id] = phone
         break
       }
@@ -83,54 +89,54 @@ export function validateResponseAnswers(
         try {
           url = new URL(urlString)
         } catch {
-          invalid('Invalid URL')
+          invalid('כתובת האתר לא תקינה')
         }
-        if (!['http:', 'https:'].includes(url.protocol)) invalid('Invalid URL protocol')
+        if (!['http:', 'https:'].includes(url.protocol)) invalid('הכתובת חייבת להתחיל ב-http או ב-https')
         answers[question.id] = url.toString()
         break
       }
       case 'date': {
         const date = stringAnswer(value, 10)
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
-          invalid('Invalid date')
+          invalid('התאריך לא תקין')
         }
         answers[question.id] = date
         break
       }
       case 'number': {
         const number = numericAnswer(value)
-        if (question.minValue !== undefined && number < question.minValue) invalid('Number is below the minimum')
-        if (question.maxValue !== undefined && number > question.maxValue) invalid('Number exceeds the maximum')
+        if (question.minValue !== undefined && number < question.minValue) invalid('המספר קטן מהערך המזערי')
+        if (question.maxValue !== undefined && number > question.maxValue) invalid('המספר גדול מהערך המרבי')
         answers[question.id] = number
         break
       }
       case 'dropdown': {
         const option = stringAnswer(value, 1000)
-        if (!question.options?.includes(option)) invalid('Invalid selected option')
+        if (!question.options?.includes(option)) invalid('האפשרות שנבחרה לא תקינה')
         answers[question.id] = option
         break
       }
       case 'checkboxes': {
         if (!Array.isArray(value) || value.length > (question.options?.length || 0)) {
-          invalid('Invalid checkbox selection')
+          invalid('הבחירה לא תקינה')
         }
         const selections = value.map(item => {
-          if (typeof item !== 'string' || !question.options?.includes(item)) invalid('Invalid checkbox option')
+          if (typeof item !== 'string' || !question.options?.includes(item)) invalid('אחת האפשרויות שנבחרו לא תקינה')
           return item
         })
-        if (new Set(selections).size !== selections.length) invalid('Duplicate checkbox option')
+        if (new Set(selections).size !== selections.length) invalid('נבחרה אותה אפשרות יותר מפעם אחת')
         answers[question.id] = selections
         break
       }
       case 'yes_no':
-        if (value !== 'Yes' && value !== 'No') invalid('Invalid Yes/No answer')
+        if (value !== 'Yes' && value !== 'No') invalid('תשובת כן/לא לא תקינה')
         answers[question.id] = value
         break
       case 'rating': {
         const rating = numericAnswer(value)
         const minimum = question.minValue || 1
         const maximum = question.maxValue || 5
-        if (!Number.isInteger(rating) || rating < minimum || rating > maximum) invalid('Invalid rating')
+        if (!Number.isInteger(rating) || rating < minimum || rating > maximum) invalid('הדירוג לא תקין')
         answers[question.id] = rating
         break
       }
@@ -138,14 +144,14 @@ export function validateResponseAnswers(
         const scale = numericAnswer(value)
         const minimum = question.minValue || 1
         const maximum = question.maxValue || 10
-        if (!Number.isInteger(scale) || scale < minimum || scale > maximum) invalid('Invalid opinion scale')
+        if (!Number.isInteger(scale) || scale < minimum || scale > maximum) invalid('הערך בסולם לא תקין')
         answers[question.id] = scale
         break
       }
       case 'file_upload': {
-        if (typeof value !== 'object' || Array.isArray(value)) invalid('Invalid upload')
+        if (typeof value !== 'object' || Array.isArray(value)) invalid('הקובץ שהועלה לא תקין')
         const uploadId = (value as Record<string, Json | undefined>).uploadId
-        if (typeof uploadId !== 'string' || !UUID_PATTERN.test(uploadId)) invalid('Invalid upload ID')
+        if (typeof uploadId !== 'string' || !UUID_PATTERN.test(uploadId)) invalid('מזהה הקובץ לא תקין')
         uploadReferences.push({ questionId: question.id, uploadId })
         answers[question.id] = { uploadId }
         break

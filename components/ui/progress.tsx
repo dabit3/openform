@@ -28,11 +28,14 @@ function Progress({
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className={cn("bg-primary h-full w-full flex-1 transition-all", indicatorClassName)}
-        style={{ 
-          transform: `translateX(-${100 - (value || 0)}%)`,
+        className={cn(
+          "bg-primary h-full w-full flex-1 -translate-x-(--progress-remaining) transition-all rtl:translate-x-(--progress-remaining)",
+          indicatorClassName
+        )}
+        style={{
+          "--progress-remaining": `${100 - (value || 0)}%`,
           ...indicatorStyle
-        }}
+        } as React.CSSProperties}
       />
     </ProgressPrimitive.Root>
   )

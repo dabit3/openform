@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { FormPlayer } from '@/components/form-player/form-player'
 import { Form } from '@/lib/database.types'
 import { QuestionConfig } from '@/lib/database.types'
@@ -13,7 +13,7 @@ interface FormPageProps {
 
 export async function generateMetadata({ params }: FormPageProps) {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data } = await supabase
     .from('forms')
@@ -25,18 +25,18 @@ export async function generateMetadata({ params }: FormPageProps) {
   const form = data as { title: string; description: string | null } | null
 
   if (!form) {
-    return { title: 'Form Not Found' }
+    return { title: 'הטופס לא נמצא' }
   }
 
   return {
-    title: form.title || 'Form',
-    description: form.description || 'Fill out this form',
+    title: form.title || 'טופס',
+    description: form.description || 'מלא את הטופס הזה',
   }
 }
 
 export default async function FormPage({ params }: FormPageProps) {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data, error } = await supabase
     .from('forms')

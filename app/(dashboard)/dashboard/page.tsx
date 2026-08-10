@@ -39,13 +39,13 @@ export default async function DashboardPage() {
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Forms</h1>
-          <p className="text-slate-600 mt-1">Create and manage your forms</p>
+          <h1 className="text-2xl font-bold text-slate-900">הטפסים שלי</h1>
+          <p className="text-slate-600 mt-1">יצירה וניהול של הטפסים שלך</p>
         </div>
         <Link href="/forms/new">
           <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/30 hover:-translate-y-0.5">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Form
+            <Plus className="w-4 h-4 me-2" />
+            טופס חדש
           </Button>
         </Link>
       </div>
@@ -55,14 +55,14 @@ export default async function DashboardPage() {
           <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-100 to-sky-100 flex items-center justify-center shadow-lg shadow-blue-500/10">
             <FileText className="w-10 h-10 text-blue-500" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-3">Create your first form</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">כאן מתחיל הטופס הראשון שלך</h2>
           <p className="text-slate-600 mb-8 max-w-md mx-auto leading-relaxed">
-            Build beautiful, engaging forms that people actually want to fill out. One question at a time.
+            אפשר לבנות טפסים יפים ומזמינים שאנשים באמת ירצו למלא. שאלה אחת בכל פעם.
           </p>
           <Link href="/forms/new">
             <Button size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/25 transition-all hover:shadow-blue-600/35 hover:-translate-y-0.5">
-              <Plus className="w-5 h-5 mr-2" />
-              Create your first form
+              <Plus className="w-5 h-5 me-2" />
+              יצירת הטופס הראשון
             </Button>
           </Link>
         </Card>
