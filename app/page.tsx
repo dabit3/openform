@@ -141,7 +141,7 @@ export default async function HomePage() {
               <div className="w-10" />
             </div>
             <div
-              className="relative aspect-[16/10] sm:aspect-video rounded-xl overflow-hidden flex items-center"
+              className="relative py-10 sm:py-0 sm:aspect-video rounded-xl overflow-hidden flex items-center"
               style={{ backgroundColor: previewTheme.backgroundColor, color: previewTheme.textColor, fontFamily: previewTheme.fontFamily }}
             >
               <div className="absolute top-0 inset-x-0 h-1" style={{ backgroundColor: `${previewTheme.primaryColor}25` }}>
