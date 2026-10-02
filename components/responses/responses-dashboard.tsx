@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Form, Response, QuestionConfig, Json } from '@/lib/database.types'
@@ -115,7 +114,6 @@ function formatFileSize(bytes: number): string {
 }
 
 export function ResponsesDashboard({ form, responses: initialResponses }: ResponsesDashboardProps) {
-  const router = useRouter()
   const supabase = createClient()
   const questions = (form.questions as QuestionConfig[]) || []
 
@@ -196,29 +194,32 @@ export function ResponsesDashboard({ form, responses: initialResponses }: Respon
     toast.success('CSV exported successfully')
   }
 
-  const copyFormLink = () => {
-    const link = `${window.location.origin}/f/${form.slug}`
-    navigator.clipboard.writeText(link)
-    toast.success('Link copied to clipboard')
+  const copyFormLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/f/${form.slug}`)
+      toast.success('Link copied to clipboard')
+    } catch {
+      toast.error('Couldn’t copy link')
+    }
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-12 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 text-slate-600">
+            <Link href="/dashboard">
+              <ArrowLeft className="w-4 h-4" />
+              All forms
+            </Link>
+          </Button>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900">{form.title}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{form.title}</h1>
               {form.status === 'published' && (
                 <Badge className="bg-emerald-100 text-emerald-700">Published</Badge>
               )}
@@ -235,24 +236,24 @@ export function ResponsesDashboard({ form, responses: initialResponses }: Respon
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href={`/forms/${form.id}/edit`}>
-              <Button variant="outline" size="sm">
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit Form
-              </Button>
-            </Link>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/forms/${form.id}/edit`}>
+                <Pencil className="w-4 h-4" />
+                Edit form
+              </Link>
+            </Button>
             {form.status === 'published' && (
               <>
                 <Button variant="outline" size="sm" onClick={copyFormLink}>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Link
+                  <Copy className="w-4 h-4" />
+                  Copy link
                 </Button>
-                <Link href={`/f/${form.slug}`} target="_blank">
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View Form
-                  </Button>
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/f/${form.slug}`} target="_blank">
+                    <ExternalLink className="w-4 h-4" />
+                    Open form
+                  </Link>
+                </Button>
               </>
             )}
           </div>

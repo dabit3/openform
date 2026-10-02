@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Form, QuestionConfig, ThemePreset, FormStatus } from '@/lib/database.types'
 import { questionTypes, createDefaultQuestion } from '@/lib/questions'
@@ -39,17 +38,20 @@ import {
   Palette,
   FileText,
   Pencil,
+  CopyPlus,
+  Loader2,
+  Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import { QuestionEditor } from './question-editor'
 import { FormPreview } from './form-preview'
+import { FormPlayer } from '@/components/form-player/form-player'
 
 interface FormBuilderProps {
   form: Form
 }
 
 export function FormBuilder({ form: initialForm }: FormBuilderProps) {
-  const router = useRouter()
   const supabase = createClient()
   
   const [form, setForm] = useState(initialForm)
@@ -62,10 +64,16 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
   const [showAddQuestion, setShowAddQuestion] = useState(false)
   const [activeTab, setActiveTab] = useState('questions')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showFullPreview, setShowFullPreview] = useState(false)
 
   const selectedQuestion = questions.find(q => q.id === selectedQuestionId)
 
   const handleSave = useCallback(async () => {
+    if (!form.slug) {
+      toast.error('Form URL cannot be empty')
+      setActiveTab('settings')
+      return
+    }
     setIsSaving(true)
     const updateData = {
       title: form.title,
@@ -81,7 +89,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       .eq('id', form.id)
 
     if (error) {
-      toast.error('Failed to save form')
+      toast.error(error.code === '23505' ? 'That form URL is already taken' : 'Failed to save form')
     } else {
       toast.success('Form saved')
       setHasUnsavedChanges(false)
@@ -89,9 +97,33 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
     setIsSaving(false)
   }, [supabase, form, questions])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        if (!isSaving) handleSave()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSave, isSaving])
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
   const handlePublish = async () => {
-    if (questions.length === 0) {
+    if (questions.length === 0 && form.status !== 'published') {
       toast.error('Add at least one question before publishing')
+      return
+    }
+    if (!form.slug) {
+      toast.error('Form URL cannot be empty')
       return
     }
 
@@ -113,7 +145,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
       .eq('id', form.id)
 
     if (error) {
-      toast.error('Failed to update form status')
+      toast.error(error.code === '23505' ? 'That form URL is already taken' : 'Failed to update form status')
     } else {
       setForm({ ...form, status: newStatus })
       toast.success(newStatus === 'published' ? 'Form published!' : 'Form unpublished')
@@ -138,6 +170,15 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
     setHasUnsavedChanges(true)
   }
 
+  const duplicateQuestion = (id: string) => {
+    const index = questions.findIndex(q => q.id === id)
+    if (index === -1) return
+    const copy = { ...questions[index], id: crypto.randomUUID() }
+    setQuestions([...questions.slice(0, index + 1), copy, ...questions.slice(index + 1)])
+    setSelectedQuestionId(copy.id)
+    setHasUnsavedChanges(true)
+  }
+
   const deleteQuestion = (id: string) => {
     setQuestions(questions.filter(q => q.id !== id))
     if (selectedQuestionId === id) {
@@ -151,10 +192,14 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
     setHasUnsavedChanges(true)
   }
 
-  const copyFormLink = () => {
+  const copyFormLink = async () => {
     const link = `${window.location.origin}/f/${form.slug}`
-    navigator.clipboard.writeText(link)
-    toast.success('Link copied to clipboard')
+    try {
+      await navigator.clipboard.writeText(link)
+      toast.success('Link copied to clipboard')
+    } catch {
+      toast.error('Couldn’t copy link')
+    }
   }
 
   const currentTheme = themes[form.theme as ThemePreset] || themes.minimal
@@ -162,14 +207,14 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
   return (
     <div className="h-screen flex flex-col bg-slate-50">
       {/* Header */}
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between gap-4 px-4 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Back</span>
+            </Link>
+          </Button>
           <Separator orientation="vertical" className="h-6" />
           <div className="group relative flex items-center">
             <Input
@@ -192,34 +237,54 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
           {form.status === 'closed' && (
             <Badge variant="secondary" className="bg-amber-100 text-amber-700">Closed</Badge>
           )}
-          {hasUnsavedChanges && (
-            <span className="text-sm text-slate-500">Unsaved changes</span>
-          )}
+          <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap">
+            {hasUnsavedChanges ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Unsaved changes
+              </>
+            ) : (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                All changes saved
+              </>
+            )}
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {form.status === 'published' && (
             <>
-              <Button variant="outline" size="sm" onClick={copyFormLink}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copy link
+              <Button variant="ghost" size="sm" onClick={copyFormLink} title="Copy link">
+                <Copy className="w-4 h-4" />
+                <span className="hidden lg:inline">Copy link</span>
               </Button>
-              <Link href={`/f/${form.slug}`} target="_blank">
-                <Button variant="outline" size="sm">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View
-                </Button>
-              </Link>
+              <Button variant="ghost" size="sm" asChild title="Open live form">
+                <Link href={`/f/${form.slug}`} target="_blank">
+                  <ExternalLink className="w-4 h-4" />
+                  <span className="hidden lg:inline">View</span>
+                </Link>
+              </Button>
             </>
           )}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleSave}
-            disabled={isSaving}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFullPreview(true)}
+            disabled={questions.length === 0}
           >
-            <Save className="w-4 h-4 mr-2" />
-            Save
+            <Eye className="w-4 h-4" />
+            <span className="hidden sm:inline">Preview</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving || !hasUnsavedChanges}
+            title="Save (⌘S)"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span className="hidden sm:inline">Save</span>
           </Button>
           <Button
             size="sm"
@@ -229,7 +294,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
               : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20'
             }
           >
-            <Globe className="w-4 h-4 mr-2" />
+            <Globe className="w-4 h-4" />
             {form.status === 'published' ? 'Unpublish' : 'Publish'}
           </Button>
         </div>
@@ -304,8 +369,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                                     <span className="text-xs font-medium text-slate-400">
                                       {index + 1}
                                     </span>
-                                    <span className="text-xs text-slate-400 capitalize">
-                                      {question.type.replace('_', ' ')}
+                                    <span className="text-xs text-slate-400">
+                                      {questionTypes.find(qt => qt.type === question.type)?.label ?? question.type}
                                     </span>
                                     {question.required && (
                                       <span className="text-xs text-red-500">*</span>
@@ -315,17 +380,34 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                                     {question.title || 'Untitled question'}
                                   </p>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    deleteQuestion(question.id)
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                                </Button>
+                                <div className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    aria-label="Duplicate question"
+                                    title="Duplicate"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      duplicateQuestion(question.id)
+                                    }}
+                                  >
+                                    <CopyPlus className="w-4 h-4 text-slate-400" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:text-red-500"
+                                    aria-label="Delete question"
+                                    title="Delete"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      deleteQuestion(question.id)
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-slate-400" />
+                                  </Button>
+                                </div>
                               </div>
                             </motion.div>
                           </Reorder.Item>
@@ -407,6 +489,9 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
                     placeholder="Optional form description..."
                     rows={3}
                   />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    When set, respondents see a welcome screen with your title and description before the first question.
+                  </p>
                 </div>
 
                 <div>
@@ -479,6 +564,15 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
         </div>
       </div>
 
+      <AnimatePresence>
+        {showFullPreview && (
+          <FullScreenPreview
+            onClose={() => setShowFullPreview(false)}
+            form={{ ...form, questions }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Add Question Dialog */}
       <Dialog open={showAddQuestion} onOpenChange={setShowAddQuestion}>
         <DialogContent className="max-w-2xl">
@@ -488,7 +582,7 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
               Choose a question type to add to your form
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-3 py-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 py-4 max-h-[60vh] overflow-y-auto">
             {questionTypes.map((qt) => (
               <button
                 key={qt.type}
@@ -519,8 +613,8 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
             </DialogDescription>
           </DialogHeader>
           {form.status !== 'published' && (
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <code className="text-sm text-blue-600">
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <code className="text-sm text-blue-600 break-all">
                 {typeof window !== 'undefined' ? window.location.origin : ''}/f/{form.slug}
               </code>
             </div>
@@ -543,5 +637,50 @@ export function FormBuilder({ form: initialForm }: FormBuilderProps) {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+function FullScreenPreview({
+  form,
+  onClose,
+}: {
+  form: React.ComponentProps<typeof FormPlayer>['form']
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [onClose])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 z-50 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Form preview"
+    >
+      <FormPlayer form={form} preview />
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={onClose}
+        className="fixed top-3 right-3 z-[60] shadow-md"
+      >
+        <X className="w-4 h-4" />
+        Close preview
+      </Button>
+    </motion.div>
   )
 }

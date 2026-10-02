@@ -15,16 +15,9 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen relative">
-      {/* Sophisticated gradient background */}
-      <div 
-        className="fixed inset-0 z-0"
-        style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.06) 0%, transparent 50%), radial-gradient(ellipse 50% 40% at 100% 50%, rgba(59, 130, 246, 0.04) 0%, transparent 50%), linear-gradient(to bottom, #f8faff 0%, #fafbff 100%)',
-        }}
-      />
+    <div className="min-h-screen bg-slate-50">
       <DashboardNav user={user} />
-      <main className="relative z-10 pt-16">
+      <main className="pt-16">
         {children}
       </main>
     </div>
