@@ -8,7 +8,7 @@ export const themes: Record<ThemePreset, ThemeConfig> = {
     backgroundColor: '#0F0F1A',
     textColor: '#FFFFFF',
     accentColor: '#A78BFA',
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "var(--font-dm-sans), sans-serif",
   },
   ocean: {
     id: 'ocean',
@@ -17,7 +17,7 @@ export const themes: Record<ThemePreset, ThemeConfig> = {
     backgroundColor: '#0C1929',
     textColor: '#F0F9FF',
     accentColor: '#38BDF8',
-    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    fontFamily: "var(--font-plus-jakarta), sans-serif",
   },
   sunset: {
     id: 'sunset',
@@ -26,7 +26,7 @@ export const themes: Record<ThemePreset, ThemeConfig> = {
     backgroundColor: '#FFFBEB',
     textColor: '#1C1917',
     accentColor: '#FB923C',
-    fontFamily: "'Outfit', sans-serif",
+    fontFamily: "var(--font-outfit), sans-serif",
   },
   forest: {
     id: 'forest',
@@ -35,7 +35,7 @@ export const themes: Record<ThemePreset, ThemeConfig> = {
     backgroundColor: '#022C22',
     textColor: '#ECFDF5',
     accentColor: '#34D399',
-    fontFamily: "'Space Grotesk', sans-serif",
+    fontFamily: "var(--font-space-grotesk), sans-serif",
   },
   lavender: {
     id: 'lavender',
@@ -44,7 +44,7 @@ export const themes: Record<ThemePreset, ThemeConfig> = {
     backgroundColor: '#FAF5FF',
     textColor: '#1E1B4B',
     accentColor: '#C084FC',
-    fontFamily: "'Sora', sans-serif",
+    fontFamily: "var(--font-sora), sans-serif",
   },
   minimal: {
     id: 'minimal',
@@ -53,7 +53,7 @@ export const themes: Record<ThemePreset, ThemeConfig> = {
     backgroundColor: '#FFFFFF',
     textColor: '#18181B',
     accentColor: '#3F3F46',
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "var(--font-inter), sans-serif",
   },
 }
 

@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/ui/logo'
-import { ArrowRight, Sparkles, Zap, Shield, Palette } from 'lucide-react'
+import { themeList } from '@/lib/themes'
+import { questionTypes } from '@/lib/questions'
+import { ArrowRight, Keyboard, Palette, Shield, Smartphone, Download, Zap } from 'lucide-react'
 
 async function getUser() {
   try {
@@ -18,132 +20,165 @@ async function getUser() {
   }
 }
 
+const features = [
+  {
+    icon: Zap,
+    title: 'One question at a time',
+    description: 'A focused, conversational flow that keeps respondents moving instead of scrolling a wall of fields.',
+  },
+  {
+    icon: Keyboard,
+    title: 'Keyboard first',
+    description: 'Enter to continue, letter keys to pick options, arrows to move around. No mouse required.',
+  },
+  {
+    icon: Palette,
+    title: 'Six polished themes',
+    description: 'Pick a look in one click and preview it live while you build.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Mobile ready',
+    description: 'Large tap targets and native inputs make forms just as pleasant on a phone.',
+  },
+  {
+    icon: Download,
+    title: 'Your data, exportable',
+    description: 'Search responses, preview uploaded files, and export everything to CSV.',
+  },
+  {
+    icon: Shield,
+    title: 'Private by default',
+    description: 'Row-level security means only you can see the responses to your forms.',
+  },
+]
+
 export default async function HomePage() {
   const user = await getUser()
+  const ctaHref = user ? '/dashboard' : '/login'
+  const previewTheme = themeList.find((t) => t.id === 'midnight') ?? themeList[0]
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden">
-      {/* Sophisticated Blue Gradient Background */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37, 99, 235, 0.15) 0%, transparent 50%), radial-gradient(ellipse 60% 50% at 100% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%), radial-gradient(ellipse 60% 50% at 0% 80%, rgba(14, 165, 233, 0.06) 0%, transparent 50%), linear-gradient(to bottom, #ffffff 0%, #f8faff 100%)",
-        }}
-      />
-      
-      {/* Subtle grid pattern */}
-      <div 
-        className="absolute inset-0 z-0 opacity-[0.015]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232563eb' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-      
+    <div className="min-h-screen w-full bg-white text-slate-900">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50">
-        <div 
-          className="absolute inset-0 h-28 backdrop-blur-md"
-          style={{
-            maskImage: 'linear-gradient(to bottom, black 0%, black 75%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 75%, transparent 100%)',
-            background: 'linear-gradient(to bottom, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.92) 70%, rgba(255,255,255,0) 100%)',
-          }}
-        />
-        <div className="relative max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Logo href="/" />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             {user ? (
-              <Link href="/dashboard">
-                <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/30 hover:-translate-y-0.5">
+              <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+                <Link href="/dashboard">
                   Dashboard
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
             ) : (
               <>
-                <Link href="/login">
-                  <Button variant="ghost" className="text-slate-600 hover:text-slate-900">
-                    Sign in
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-blue-600/30 hover:-translate-y-0.5">
-                    Get Started
-                    <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
+                <Button asChild variant="ghost" className="text-slate-600 hover:text-slate-900">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+                  <Link href="/login">Get started</Link>
+                </Button>
               </>
             )}
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-32 pb-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-700 text-sm font-medium mb-8 border border-blue-100">
-            <Sparkles className="w-4 h-4" />
-            Free & Open Source
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold text-slate-900 leading-tight mb-6 tracking-tight">
-            Forms that feel{' '}
-            <span className="text-blue-600">
-              human
-            </span>
+      {/* Hero */}
+      <section className="relative overflow-hidden pt-32 sm:pt-40 pb-16 px-4 sm:px-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-[520px]"
+          style={{ background: 'radial-gradient(ellipse 60% 60% at 50% 0%, rgba(37, 99, 235, 0.10) 0%, transparent 70%)' }}
+        />
+        <div className="relative max-w-3xl mx-auto text-center">
+          <a
+            href="https://github.com/dabit3/openform"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-xs transition-colors hover:border-slate-300 hover:text-slate-900 mb-8"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Free &amp; open source
+            <ArrowRight className="w-3 h-3" />
+          </a>
+
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight leading-[1.05] text-balance mb-6">
+            Forms that feel <span className="text-blue-600">human</span>
           </h1>
-          
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Create beautiful, engaging forms that people actually want to fill out. 
-            One question at a time, just like a conversation.
+
+          <p className="text-lg sm:text-xl text-slate-600 max-w-xl mx-auto mb-10 leading-relaxed text-pretty">
+            Build beautiful, conversational forms people actually enjoy filling out. One question at a time.
           </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login">
-              <Button size="lg" className="h-14 px-8 text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/25 transition-all hover:shadow-blue-600/35 hover:-translate-y-0.5">
-                Start creating for free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-            <Link href="#features">
-              <Button size="lg" variant="outline" className="h-14 px-8 text-lg border-slate-300 hover:border-slate-400 hover:bg-slate-50">
-                See how it works
-              </Button>
-            </Link>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button asChild size="lg" className="h-12 px-6 text-base bg-blue-600 hover:bg-blue-700 shadow-sm w-full sm:w-auto">
+              <Link href={ctaHref}>
+                {user ? 'Go to dashboard' : 'Start building for free'}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="h-12 px-6 text-base w-full sm:w-auto">
+              <Link href="#features">See features</Link>
+            </Button>
           </div>
         </div>
-      </section>
 
-      {/* Demo Preview */}
-      <section className="relative z-10 px-6 pb-20">
-        <div className="max-w-5xl mx-auto">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-blue-900/10 border border-slate-200/80 bg-white">
-            {/* Browser chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-slate-100 border-b border-slate-200">
+        {/* Product preview */}
+        <div className="relative max-w-4xl mx-auto mt-16 sm:mt-20">
+          <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10">
+            <div className="flex items-center gap-2 px-3 py-2">
               <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-                <div className="w-3 h-3 rounded-full bg-slate-300"></div>
-                <div className="w-3 h-3 rounded-full bg-slate-300"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-200" />
               </div>
-              <div className="flex-1 flex justify-center">
-                <div className="px-4 py-1 bg-white rounded-md text-xs text-slate-500 font-medium">
-                  openform.app/your-form
-                </div>
+              <div className="mx-auto rounded-md bg-slate-100 px-3 py-0.5 text-[11px] font-medium text-slate-500">
+                openform.app/f/feedback
               </div>
+              <div className="w-10" />
             </div>
-            <div className="aspect-video bg-gradient-to-br from-blue-600 via-blue-500 to-sky-500 flex items-center justify-center relative overflow-hidden">
-              {/* Decorative circles */}
-              <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl"></div>
-              
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-8 max-w-lg text-center border border-white/20">
-                <h3 className="text-3xl font-bold text-white mb-4">What&apos;s your name?</h3>
-                <div className="bg-white/20 rounded-lg h-14 flex items-center px-4 border border-white/10">
-                  <span className="text-white/60 text-lg">Type your answer here...</span>
-                </div>
-                <div className="mt-6 flex items-center justify-center gap-3">
-                  <span className="text-white/60 text-sm">Press</span>
-                  <kbd className="px-3 py-1 bg-white/20 rounded text-white text-sm font-medium border border-white/10">Enter ↵</kbd>
+            <div
+              className="relative aspect-[16/10] sm:aspect-video rounded-xl overflow-hidden flex items-center"
+              style={{ backgroundColor: previewTheme.backgroundColor, color: previewTheme.textColor, fontFamily: previewTheme.fontFamily }}
+            >
+              <div className="absolute top-0 inset-x-0 h-1" style={{ backgroundColor: `${previewTheme.primaryColor}25` }}>
+                <div className="h-full w-2/5" style={{ backgroundColor: previewTheme.primaryColor }} />
+              </div>
+              <div className="w-full max-w-lg mx-auto px-6 sm:px-10 text-left">
+                <div className="flex gap-3">
+                  <span className="pt-1 text-sm font-semibold" style={{ color: previewTheme.primaryColor }}>2 →</span>
+                  <div className="flex-1">
+                    <h3 className="text-xl sm:text-3xl font-semibold tracking-tight mb-6">
+                      How did you hear about us?
+                    </h3>
+                    <div className="grid gap-2">
+                      {['A friend', 'Social media', 'Search engine'].map((option, i) => (
+                        <div
+                          key={option}
+                          className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm sm:text-base"
+                          style={{
+                            borderColor: i === 1 ? previewTheme.primaryColor : `${previewTheme.textColor}25`,
+                            backgroundColor: i === 1 ? `${previewTheme.primaryColor}20` : `${previewTheme.textColor}08`,
+                          }}
+                        >
+                          <span
+                            className="flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold"
+                            style={{
+                              borderColor: i === 1 ? previewTheme.primaryColor : `${previewTheme.textColor}40`,
+                              backgroundColor: i === 1 ? previewTheme.primaryColor : 'transparent',
+                              color: i === 1 ? previewTheme.backgroundColor : previewTheme.textColor,
+                            }}
+                          >
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -152,121 +187,108 @@ export default async function HomePage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="relative z-10 py-20 px-6 bg-white">
+      <section id="features" className="scroll-mt-16 py-20 sm:py-24 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
-              Everything you need to create amazing forms
+          <div className="max-w-2xl mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4 text-balance">
+              Everything you need, nothing you don&apos;t
             </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Powerful features that make form building a breeze
+            <p className="text-lg text-slate-600">
+              A small, fast form builder focused on the experience of the person filling it out.
             </p>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-white border border-blue-100/60 hover:shadow-lg hover:shadow-blue-100/50 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
-                <Zap className="w-6 h-6 text-blue-600" />
+
+          <div className="grid gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <div key={feature.title} className="bg-white p-6 sm:p-8">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 ring-1 ring-blue-100 flex items-center justify-center mb-5">
+                  <feature.icon className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="font-semibold mb-1.5">{feature.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{feature.description}</p>
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">One at a Time</h3>
-              <p className="text-slate-600">
-                Questions appear one by one, creating a focused, distraction-free experience for respondents.
-              </p>
-            </div>
-            
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-sky-50 to-white border border-sky-100/60 hover:shadow-lg hover:shadow-sky-100/50 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-4">
-                <Palette className="w-6 h-6 text-sky-600" />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Themes */}
+      <section className="py-20 sm:py-24 px-4 sm:px-6 bg-slate-50 border-y border-slate-200">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-2xl mb-12">
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">Pick a look in one click</h2>
+            <p className="text-lg text-slate-600">Every theme comes with its own palette and typeface.</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {themeList.map((theme) => (
+              <div
+                key={theme.id}
+                className="rounded-xl p-5 border border-black/5 shadow-xs"
+                style={{ backgroundColor: theme.backgroundColor, color: theme.textColor, fontFamily: theme.fontFamily }}
+              >
+                <div className="text-xs font-semibold mb-2" style={{ color: theme.primaryColor }}>1 →</div>
+                <div className="text-lg font-semibold mb-4">{theme.name}</div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="rounded-md px-3 py-1 text-xs font-semibold"
+                    style={{ backgroundColor: theme.primaryColor, color: theme.backgroundColor }}
+                  >
+                    OK
+                  </span>
+                  <span className="text-[11px] opacity-60">press Enter ↵</span>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Beautiful Themes</h3>
-              <p className="text-slate-600">
-                Choose from stunning preset themes that make your forms look professional and on-brand.
-              </p>
-            </div>
-            
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100/60 hover:shadow-lg hover:shadow-emerald-100/50 transition-all duration-300">
-              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-emerald-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">Privacy First</h3>
-              <p className="text-slate-600">
-                Your data stays yours. Export responses anytime, delete when you want.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Question Types */}
-      <section className="relative z-10 py-20 px-6 bg-slate-50/50">
+      <section className="py-20 sm:py-24 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
-              13 question types to choose from
+          <div className="max-w-2xl mb-12">
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
+              {questionTypes.length} question types
             </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              From simple text to file uploads, we&apos;ve got you covered
-            </p>
+            <p className="text-lg text-slate-600">From short answers to ratings and file uploads.</p>
           </div>
-          
-          <div className="flex flex-wrap justify-center gap-3">
-            {[
-              'Short Text', 'Long Text', 'Dropdown', 'Checkboxes',
-              'Email', 'Phone', 'Number', 'Date', 'Rating', 'Opinion Scale',
-              'Yes/No', 'File Upload', 'Website URL'
-            ].map((type) => (
-              <span
-                key={type}
-                className="px-4 py-2 bg-white rounded-full border border-slate-200 text-slate-700 text-sm font-medium shadow-sm hover:border-blue-200 hover:bg-blue-50 transition-colors cursor-default"
-              >
-                {type}
-              </span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {questionTypes.map((qt) => (
+              <div key={qt.type} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <qt.icon className="w-4 h-4 text-slate-400 shrink-0" />
+                <span className="text-sm font-medium text-slate-700">{qt.label}</span>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="relative z-10 py-20 px-6 bg-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-blue-600 via-blue-600 to-sky-500 rounded-3xl p-12 md:p-16 text-white relative overflow-hidden">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-sky-400/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-            
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 relative">
-              Ready to create your first form?
-            </h2>
-            <p className="text-lg text-blue-100 mb-8 relative">
-              Join thousands of people using OpenForm to collect responses.
-            </p>
-            <Link href="/login">
-              <Button size="lg" className="h-14 px-8 text-lg bg-white text-blue-600 hover:bg-blue-50 shadow-xl shadow-blue-900/20 relative transition-all hover:-translate-y-0.5">
-                Get started for free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
+      <section className="pb-20 sm:pb-24 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto rounded-3xl bg-slate-900 px-6 py-14 sm:p-16 text-center text-white">
+          <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">Ready to build your first form?</h2>
+          <p className="text-slate-400 mb-8 text-lg">It takes about a minute. No credit card, no limits.</p>
+          <Button asChild size="lg" className="h-12 px-6 text-base bg-white text-slate-900 hover:bg-slate-100">
+            <Link href={ctaHref}>
+              {user ? 'Go to dashboard' : 'Get started for free'}
+              <ArrowRight className="w-4 h-4" />
             </Link>
-          </div>
+          </Button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 py-8 px-6 border-t border-slate-100 bg-white">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-slate-600 text-sm">
-            © 2026 OpenForm. Open source and free forever.
-          </p>
-          <div className="flex items-center gap-6">
-            <a href="https://github.com" className="text-slate-500 hover:text-slate-700 text-sm transition-colors">
-              GitHub
-            </a>
-            <a href="#" className="text-slate-500 hover:text-slate-700 text-sm transition-colors">
-              Privacy
-            </a>
-            <a href="#" className="text-slate-500 hover:text-slate-700 text-sm transition-colors">
-              Terms
-            </a>
-          </div>
+      <footer className="border-t border-slate-200 py-8 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} OpenForm. Open source and free forever.</p>
+          <a
+            href="https://github.com/dabit3/openform"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-500 hover:text-slate-900 text-sm transition-colors"
+          >
+            GitHub
+          </a>
         </div>
       </footer>
     </div>

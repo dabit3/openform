@@ -3,7 +3,7 @@
 import { QuestionConfig } from '@/lib/database.types'
 import { ThemeConfig } from '@/lib/database.types'
 import { motion } from 'framer-motion'
-import { Star, Check } from 'lucide-react'
+import { Star } from 'lucide-react'
 
 interface FormPreviewProps {
   questions: QuestionConfig[]
